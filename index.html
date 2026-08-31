@@ -85,6 +85,7 @@
         .profile-header-info { display: flex; align-items: center; gap: 12px; }
         .avatar-img { width: 48px; height: 48px; border-radius: 50%; object-fit: cover; border: 2px solid var(--accent); background: #2a2a35; }
         .avatar-preview-lg { width: 90px; height: 90px; border-radius: 50%; object-fit: cover; border: 3px solid var(--accent); background: #2a2a35; margin-bottom: 10px; }
+        .avatar-story { width: 64px; height: 64px; border-radius: 50%; object-fit: cover; border: 2px solid var(--accent); background: #2a2a35; margin: 0 auto 8px auto; display: block; }
 
         .timer-status { font-size: 1.8rem; font-family: monospace; font-weight: bold; color: var(--accent); }
         .pr-badge {
@@ -186,29 +187,60 @@
 
 <!-- MODAL RESUMEN PARA HISTORIAS -->
 <div id="story-modal" class="modal-overlay" style="display:none;">
-    <div class="modal-card" style="max-width: 420px; text-align: center; background: linear-gradient(145deg, #1e1e24, #121214); border: 2px solid var(--accent); border-radius: 20px; padding: 25px;">
-        <div style="font-size: 0.8rem; text-transform: uppercase; letter-spacing: 2px; color: var(--accent); font-weight: bold; margin-bottom: 5px;">Resumen de Entrenamiento</div>
-        <h2 id="story-date" style="border: none; margin-bottom: 5px; font-size: 1.4rem;">📅 --/--/----</h2>
-        <p id="story-user" style="color: var(--text-muted); font-size: 0.9rem; margin-top: 0; margin-bottom: 15px;">👤 -</p>
+    <div class="modal-card" style="max-width: 440px; text-align: center; background: linear-gradient(145deg, #1e1e24, #121214); border: 2px solid var(--accent); border-radius: 20px; padding: 20px;">
+        <img id="story-avatar" src="https://via.placeholder.com/64?text=👤" class="avatar-story" alt="Avatar">
+        <div style="font-size: 0.75rem; text-transform: uppercase; letter-spacing: 2px; color: var(--accent); font-weight: bold; margin-bottom: 2px;">Resumen de Historia</div>
+        <h2 id="story-routine-name" style="border: none; margin-bottom: 2px; font-size: 1.2rem; color: #fff;">🏋️ Rutina</h2>
+        <p id="story-date-user" style="color: var(--text-muted); font-size: 0.85rem; margin-top: 0; margin-bottom: 12px;">📅 --/--/---- • 👤 -</p>
         
-        <div style="display: flex; justify-content: space-around; background: #16161a; padding: 12px; border-radius: 12px; margin-bottom: 15px; border: 1px solid var(--border-color);">
+        <div style="display: flex; justify-content: space-around; background: #16161a; padding: 10px; border-radius: 10px; margin-bottom: 12px; border: 1px solid var(--border-color);">
             <div>
-                <span style="font-size: 0.75rem; color: var(--text-muted); display: block;">TIEMPO</span>
-                <strong id="story-duration" style="font-size: 1.1rem; color: #fff;">0 min</strong>
+                <span style="font-size: 0.7rem; color: var(--text-muted); display: block;">TIEMPO</span>
+                <strong id="story-duration" style="font-size: 1rem; color: #fff;">0 min</strong>
             </div>
             <div style="border-right: 1px solid var(--border-color);"></div>
             <div>
-                <span style="font-size: 0.75rem; color: var(--text-muted); display: block;">VOLUMEN TOTAL</span>
-                <strong id="story-volume" style="font-size: 1.1rem; color: var(--accent);">0 kg</strong>
+                <span style="font-size: 0.7rem; color: var(--text-muted); display: block;">VOLUMEN TOTAL</span>
+                <strong id="story-volume" style="font-size: 1rem; color: var(--accent);">0 kg</strong>
             </div>
         </div>
 
-        <div style="text-align: left; background: #16161a; padding: 15px; border-radius: 12px; border: 1px solid var(--border-color); max-height: 250px; overflow-y: auto; margin-bottom: 15px;" id="story-exercises-list">
+        <!-- Cuerpecito Resumen en la Historia -->
+        <div style="background: #16161a; padding: 8px; border-radius: 10px; border: 1px solid var(--border-color); margin-bottom: 12px;">
+            <span style="font-size: 0.7rem; color: var(--text-muted); font-weight: bold; display: block; margin-bottom: 5px;">ZONAS TRABAJADAS EN ESTA SESIÓN</span>
+            <div class="body-maps-wrapper" style="transform: scale(0.75); transform-origin: center; margin: -20px 0;">
+                <div class="body-map-card">
+                    <svg viewBox="0 0 160 340" width="100" height="200">
+                        <circle cx="80" cy="22" r="14" fill="#3a3a48" />
+                        <path d="M 73,36 L 87,36 L 89,45 L 71,45 Z" fill="#3a3a48" />
+                        <path id="story-chest" d="M 52,50 C 65,48 78,54 80,54 C 82,54 95,48 108,50 C 112,68 108,82 80,85 C 52,82 48,68 52,50 Z" />
+                        <path id="story-abs" d="M 58,87 C 70,87 80,88 80,88 C 80,88 90,87 102,87 C 100,118 94,135 80,135 C 66,135 60,118 58,87 Z" />
+                        <path id="story-shoulders_front" d="M 48,50 C 40,52 32,62 30,72 C 38,75 46,70 50,60 Z M 112,50 C 120,52 128,62 130,72 C 122,75 114,70 110,60 Z" />
+                        <path id="story-biceps" d="M 30,75 C 28,87 31,102 38,107 C 45,100 48,87 48,73 Z M 130,75 C 132,87 129,102 122,107 C 115,100 112,87 112,73 Z" />
+                        <path id="story-quads" d="M 56,142 C 65,142 78,145 78,145 L 75,220 C 62,215 54,190 56,142 Z M 104,142 C 95,142 82,145 82,145 L 85,220 C 98,215 106,190 104,142 Z" />
+                    </svg>
+                </div>
+                <div class="body-map-card">
+                    <svg viewBox="0 0 160 340" width="100" height="200">
+                        <circle cx="80" cy="22" r="14" fill="#3a3a48" />
+                        <path d="M 73,36 L 87,36 L 89,45 L 71,45 Z" fill="#3a3a48" />
+                        <path id="story-back_density" d="M 72,45 L 88,45 L 102,55 C 90,75 80,95 80,95 C 80,95 70,75 58,55 Z" />
+                        <path id="story-back_width" d="M 57,57 C 70,72 78,96 78,96 L 62,125 C 50,110 46,80 57,57 Z M 103,57 C 90,72 82,96 82,96 L 98,125 C 110,110 114,80 103,57 Z" />
+                        <path id="story-shoulders_rear" d="M 48,50 C 42,54 34,64 32,73 C 40,75 48,68 55,58 Z M 112,50 C 118,54 126,64 128,73 C 120,75 112,68 105,58 Z" />
+                        <path id="story-triceps" d="M 31,76 C 29,88 32,102 38,108 C 44,101 46,86 46,74 Z M 129,76 C 131,88 128,102 122,108 C 116,101 114,86 114,74 Z" />
+                        <path id="story-glutes" d="M 58,138 C 78,135 79,145 79,168 C 60,172 52,158 58,138 Z M 102,138 C 82,135 81,145 81,168 C 100,172 108,158 102,138 Z" />
+                        <path id="story-hamstrings" d="M 56,172 C 65,172 77,173 77,173 L 74,228 C 62,225 56,205 56,172 Z M 104,172 C 95,172 83,173 83,173 L 86,228 C 98,225 104,205 104,172 Z" />
+                    </svg>
+                </div>
+            </div>
         </div>
 
-        <div style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 15px;">📸 Captura de pantalla lista para tus Historias</div>
+        <div style="text-align: left; background: #16161a; padding: 12px; border-radius: 10px; border: 1px solid var(--border-color); max-height: 160px; overflow-y: auto; margin-bottom: 12px;" id="story-exercises-list">
+        </div>
+
+        <div style="font-size: 0.7rem; color: var(--text-muted); margin-bottom: 12px;">📸 ¡Haz captura y súbela a tus historias!</div>
         
-        <button class="btn-secondary" onclick="closeStoryModal()" style="width: 100%;">Cerrar</button>
+        <button class="btn-secondary" onclick="closeStoryModal()" style="width: 100%; margin-top: 0;">Cerrar</button>
     </div>
 </div>
 
@@ -309,23 +341,12 @@
                     <div class="body-map-card">
                         <span>FRONTAL</span>
                         <svg viewBox="0 0 160 340" width="140" height="280">
-                            <!-- Cabeza / Cuello -->
                             <circle cx="80" cy="22" r="14" fill="#3a3a48" />
                             <path d="M 73,36 L 87,36 L 89,45 L 71,45 Z" fill="#3a3a48" />
-
-                            <!-- Pecho -->
                             <path id="chest" d="M 52,50 C 65,48 78,54 80,54 C 82,54 95,48 108,50 C 112,68 108,82 80,85 C 52,82 48,68 52,50 Z" />
-
-                            <!-- Abdomen -->
                             <path id="abs" d="M 58,87 C 70,87 80,88 80,88 C 80,88 90,87 102,87 C 100,118 94,135 80,135 C 66,135 60,118 58,87 Z" />
-
-                            <!-- Hombro Frontal -->
                             <path id="shoulders_front" d="M 48,50 C 40,52 32,62 30,72 C 38,75 46,70 50,60 Z M 112,50 C 120,52 128,62 130,72 C 122,75 114,70 110,60 Z" />
-
-                            <!-- Bíceps -->
                             <path id="biceps" d="M 30,75 C 28,87 31,102 38,107 C 45,100 48,87 48,73 Z M 130,75 C 132,87 129,102 122,107 C 115,100 112,87 112,73 Z" />
-
-                            <!-- Cuádriceps -->
                             <path id="quads" d="M 56,142 C 65,142 78,145 78,145 L 75,220 C 62,215 54,190 56,142 Z M 104,142 C 95,142 82,145 82,145 L 85,220 C 98,215 106,190 104,142 Z" />
                         </svg>
                     </div>
@@ -333,26 +354,13 @@
                     <div class="body-map-card">
                         <span>POSTERIOR</span>
                         <svg viewBox="0 0 160 340" width="140" height="280">
-                            <!-- Cabeza / Cuello -->
                             <circle cx="80" cy="22" r="14" fill="#3a3a48" />
                             <path d="M 73,36 L 87,36 L 89,45 L 71,45 Z" fill="#3a3a48" />
-
-                            <!-- Trapecio / Densidad Espalda -->
                             <path id="back_density" d="M 72,45 L 88,45 L 102,55 C 90,75 80,95 80,95 C 80,95 70,75 58,55 Z" />
-
-                            <!-- Amplitud Espalda (Dorsales) -->
                             <path id="back_width" d="M 57,57 C 70,72 78,96 78,96 L 62,125 C 50,110 46,80 57,57 Z M 103,57 C 90,72 82,96 82,96 L 98,125 C 110,110 114,80 103,57 Z" />
-
-                            <!-- Hombro Posterior -->
                             <path id="shoulders_rear" d="M 48,50 C 42,54 34,64 32,73 C 40,75 48,68 55,58 Z M 112,50 C 118,54 126,64 128,73 C 120,75 112,68 105,58 Z" />
-
-                            <!-- Tríceps -->
                             <path id="triceps" d="M 31,76 C 29,88 32,102 38,108 C 44,101 46,86 46,74 Z M 129,76 C 131,88 128,102 122,108 C 116,101 114,86 114,74 Z" />
-
-                            <!-- Glúteos -->
                             <path id="glutes" d="M 58,138 C 78,135 79,145 79,168 C 60,172 52,158 58,138 Z M 102,138 C 82,135 81,145 81,168 C 100,172 108,158 102,138 Z" />
-
-                            <!-- Isquiotibiales -->
                             <path id="hamstrings" d="M 56,172 C 65,172 77,173 77,173 L 74,228 C 62,225 56,205 56,172 Z M 104,172 C 95,172 83,173 83,173 L 86,228 C 98,225 104,205 104,172 Z" />
                         </svg>
                     </div>
@@ -527,7 +535,6 @@
         { id: "hip_thrust", name: "Hip Thrust", primary: "glutes" }
     ];
 
-    // Umbrales máximos de referencia aproximados por grupo muscular (en kg) para calibrar la intensidad individual
     const muscleMaxReference = {
         chest: 4000, abs: 1500, quads: 6000, biceps: 2000, shoulders_front: 3000,
         back_width: 5000, back_density: 5000, shoulders_rear: 2000, triceps: 2500,
@@ -576,7 +583,6 @@
         if (tabName === 'stats') renderAdvancedStats();
     }
 
-    /* MANEJO DE PERFIL Y FOTO */
     function loadProfileInfo() {
         const storedName = localStorage.getItem(`userName_${userEmail.toLowerCase()}`);
         userName = storedName || userEmail.split('@')[0];
@@ -619,7 +625,6 @@
         }
     }
 
-    /* GESTIÓN DE EJERCICIOS Y RUTINAS LOCALES */
     function loadUserExercises() {
         const exStorageKey = `customExercises_${userEmail.toLowerCase()}`;
         const savedEx = localStorage.getItem(exStorageKey);
@@ -781,7 +786,6 @@
         }
     }
 
-    /* CONTRA RELOJ DE DESCANSO */
     function toggleRestTimer() {
         const btn = document.getElementById('btn-toggle-rest');
         const display = document.getElementById('rest-timer-display');
@@ -803,7 +807,6 @@
         }
     }
 
-    /* CONEXIÓN NUBE Y DATOS */
     function loginAndSync() {
         userEmail = document.getElementById('login-email').value.trim();
         const status = document.getElementById('sync-status');
@@ -885,7 +888,6 @@
         updateExercisePrBadge(); updateBodyMap(); initChart();
     }
 
-    /* EDICIÓN Y ELIMINACIÓN DESDE EL CALENDARIO */
     function openDayModal(dateStr) {
         selectedModalDate = dateStr;
         document.getElementById('day-modal-title').textContent = `📅 Entreno del ${dateStr}`;
@@ -978,7 +980,6 @@
         });
     }
 
-    /* ESTADÍSTICAS AVANZADAS (SEMANA, MES, AÑO) */
     function renderAdvancedStats() {
         const timeframe = document.getElementById('stats-time-frame').value;
         const now = new Date();
@@ -1069,7 +1070,6 @@
         summaryContainer.innerHTML = summaryHTML;
     }
 
-    /* FORMULARIO Y TABLAS DE SERIES */
     function addSetRow() {
         setCounter++;
         const container = document.getElementById('sets-container');
@@ -1207,7 +1207,6 @@
         btnSubmit.disabled = false;
         btnSubmit.textContent = "Guardar Ejercicio y Series";
 
-        // Mantiene la rutina activa seleccionada
         const currentRoutine = document.getElementById('routine-selector').value;
         document.getElementById('workout-form').reset();
         document.getElementById('routine-selector').value = currentRoutine;
@@ -1270,7 +1269,6 @@
 
     function renderChart() { if (weightChartInstance) weightChartInstance.update(); }
 
-    /* ACTUALIZACIÓN DEL MAPA MUSCULAR SEGÚN CADA GRUPO INDIVIDUAL */
     function updateBodyMap() {
         const allMuscles = ['chest', 'abs', 'quads', 'biceps', 'shoulders_front', 'back_width', 'back_density', 'shoulders_rear', 'triceps', 'glutes', 'hamstrings'];
 
@@ -1279,23 +1277,16 @@
             if (!el) return;
 
             const currentVol = muscleData[m] || 0;
-            const refVol = muscleMaxReference[m] || 3000; // Referencia del grupo muscular individual
+            const refVol = muscleMaxReference[m] || 3000;
 
             if (currentVol === 0) {
-                el.style.fill = '#2a2a35'; // Gris por defecto si no ha sido entrenado
+                el.style.fill = '#2a2a35';
             } else {
-                // Ratio de volumen en base a su propio grupo muscular
                 const ratio = Math.min(currentVol / refVol, 1.0);
-
-                if (ratio <= 0.3) {
-                    el.style.fill = '#1b5e20'; // Verde oscuro (Baja-Media carga)
-                } else if (ratio <= 0.6) {
-                    el.style.fill = '#00e676'; // Verde brillante (Carga moderada optima)
-                } else if (ratio <= 0.85) {
-                    el.style.fill = '#ffb74d'; // Naranja (Alta intensidad)
-                } else {
-                    el.style.fill = '#ff5252'; // Rojo (Máxima carga / Cerca de límite)
-                }
+                if (ratio <= 0.3) el.style.fill = '#1b5e20';
+                else if (ratio <= 0.6) el.style.fill = '#00e676';
+                else if (ratio <= 0.85) el.style.fill = '#ffb74d';
+                else el.style.fill = '#ff5252';
             }
         });
     }
@@ -1327,7 +1318,6 @@
         }
     }
 
-    /* INICIAR Y FINALIZAR SESIÓN DE ENTRENO */
     function toggleWorkoutSession() {
         const btn = document.getElementById('btn-toggle-workout');
         const status = document.getElementById('session-status');
@@ -1358,10 +1348,8 @@
             btn.style.color = "#000";
             status.textContent = `Finalizado (${duration} min)`;
 
-            // Generar y desplegar modal de historias
             generateStorySummary(workoutStartTime, endTime, duration);
 
-            // Se reinicia el selector de rutina al finalizar el entreno
             document.getElementById('routine-selector').value = "";
             filterExercisesByRoutine();
 
@@ -1378,7 +1366,14 @@
             return rDate === todayStr;
         });
 
+        // Detectar nombre del entreno usado en la sesión
+        let activeRoutineName = "Entrenamiento Libre";
+        if (currentSessionRows.length > 0 && currentSessionRows[0].routineName) {
+            activeRoutineName = currentSessionRows[0].routineName;
+        }
+
         const exerciseGroups = {};
+        const sessionMuscles = {};
         let grandTotalVolume = 0;
 
         currentSessionRows.forEach(r => {
@@ -1387,9 +1382,15 @@
             const vol = weightKg * (r.isUnilateral === 'si' ? reps * 2 : reps);
             grandTotalVolume += vol;
 
-            if (!exerciseGroups[r.exercise]) {
-                exerciseGroups[r.exercise] = { setsCount: 0, maxWeight: 0, unit: r.unit };
+            const exObj = exercisesDatabase.find(e => e.name.toLowerCase() === (r.exercise || "").toLowerCase());
+            if (exObj) {
+                sessionMuscles[exObj.primary] = (sessionMuscles[exObj.primary] || 0) + vol;
             }
+
+            if (!exerciseGroups[r.exercise]) {
+                exerciseGroups[r.exercise] = { totalVol: 0, setsCount: 0, maxWeight: 0, unit: r.unit };
+            }
+            exerciseGroups[r.exercise].totalVol += vol;
             exerciseGroups[r.exercise].setsCount++;
             if (parseFloat(r.weight) > exerciseGroups[r.exercise].maxWeight) {
                 exerciseGroups[r.exercise].maxWeight = parseFloat(r.weight);
@@ -1397,26 +1398,51 @@
             }
         });
 
-        document.getElementById('story-date').textContent = `📅 ${todayStr}`;
-        document.getElementById('story-user').textContent = `👤 Athlete: ${userName}`;
+        // Configurar foto de perfil en el modal de historias
+        const currentAvatarSrc = document.getElementById('profile-avatar').src;
+        document.getElementById('story-avatar').src = currentAvatarSrc;
+
+        document.getElementById('story-routine-name').textContent = `🏋️ ${activeRoutineName}`;
+        document.getElementById('story-date-user').textContent = `📅 ${todayStr} • 👤 ${userName}`;
         document.getElementById('story-duration').textContent = `${duration} min`;
         document.getElementById('story-volume').textContent = `${Math.round(grandTotalVolume)} kg`;
+
+        // Colorear el cuerpecito del modal de historias según los músculos de ESTA sesión
+        const storyMuscles = ['chest', 'abs', 'quads', 'biceps', 'shoulders_front', 'back_width', 'back_density', 'shoulders_rear', 'triceps', 'glutes', 'hamstrings'];
+        storyMuscles.forEach(m => {
+            const el = document.getElementById(`story-${m}`);
+            if (!el) return;
+            const vol = sessionMuscles[m] || 0;
+            const ref = muscleMaxReference[m] || 3000;
+            if (vol === 0) {
+                el.style.fill = '#2a2a35';
+            } else {
+                const ratio = Math.min(vol / ref, 1.0);
+                if (ratio <= 0.3) el.style.fill = '#1b5e20';
+                else if (ratio <= 0.6) el.style.fill = '#00e676';
+                else if (ratio <= 0.85) el.style.fill = '#ffb74d';
+                else el.style.fill = '#ff5252';
+            }
+        });
 
         const listContainer = document.getElementById('story-exercises-list');
         listContainer.innerHTML = "";
 
         const entries = Object.entries(exerciseGroups);
         if (entries.length === 0) {
-            listContainer.innerHTML = "<p style='color:var(--text-muted); text-align:center;'>No se registraron series en esta sesión.</p>";
+            listContainer.innerHTML = "<p style='color:var(--text-muted); text-align:center; font-size:0.8rem;'>No se registraron series en esta sesión.</p>";
         } else {
             entries.forEach(([exName, info]) => {
                 const item = document.createElement('div');
-                item.style.marginBottom = "8px";
+                item.style.marginBottom = "6px";
                 item.style.borderBottom = "1px solid var(--border-color)";
-                item.style.paddingBottom = "5px";
+                item.style.paddingBottom = "4px";
                 item.innerHTML = `
-                    <strong style="color:#fff; font-size:0.9rem;">${exName}</strong><br>
-                    <small style="color:var(--accent);">${info.setsCount} series completadas • Máx: ${info.maxWeight} ${info.unit}</small>
+                    <div style="display: flex; justify-content: space-between; font-size:0.85rem;">
+                        <strong style="color:#fff;">${exName}</strong>
+                        <span style="color:var(--accent); font-weight:bold;">${Math.round(info.totalVol)} kg</span>
+                    </div>
+                    <small style="color:var(--text-muted);">Máx: ${info.maxWeight} ${info.unit} • ${info.setsCount} series</small>
                 `;
                 listContainer.appendChild(item);
             });
