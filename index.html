@@ -445,7 +445,17 @@
                 </div>
                 <!-- Contenedor 3D -->
                 <div id="body-3d-container" style="width: 100%; height: 350px; cursor: grab; position: relative;"></div>
-                <small style="color: var(--text-muted);">💡 Arrastra con el ratón para rotar el modelo completo 3D.</small>
+                <small style="color: var(--text-muted);">💡 Arrastra con el ratón para rotar el modelo completo 3D. Toca una zona para ver el detalle.</small>
+
+                <div id="body-part-detail" style="display:none; text-align:left; background:#16161a; border:1px solid var(--border-color); border-radius:8px; padding:10px; margin-top:10px; font-size:0.85rem;"></div>
+
+                <div style="display:flex; flex-wrap:wrap; gap:10px; justify-content:center; margin-top:12px; font-size:0.7rem; color:var(--text-muted);">
+                    <span><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#2ecc71;margin-right:4px;"></span>Sin entrenar</span>
+                    <span><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#ffd600;margin-right:4px;"></span>1 ejercicio</span>
+                    <span><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#ff9800;margin-right:4px;"></span>2 ejercicios</span>
+                    <span><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#ff1744;margin-right:4px;"></span>3 ejercicios</span>
+                    <span><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#795548;margin-right:4px;"></span>+3 ejercicios</span>
+                </div>
             </div>
 
             <!-- 2b. MAPA MUSCULAR 2D (FRONTAL / POSTERIOR) DEL DÍA SELECCIONADO -->
@@ -754,6 +764,11 @@
     
         loadProfileInfo();
         loadUserExercises();
+
+        // Si ya había un entreno en curso (de antes de recargar/cerrar la app),
+        // lo recuperamos, y revisamos si estuviste más de 5 min fuera.
+        restoreActiveWorkoutSessionIfAny();
+        checkAwayGapAndAlertIfNeeded();
     
         let syncOk = true;
         try {
@@ -838,6 +853,11 @@
     }
 
     // --- MODELO 3D (THREE.JS) ---
+    function tagBodyMesh(mesh, key) {
+        mesh.userData.bodyKey = key;
+        return mesh;
+    }
+
     function init3DBodyModel() {
         const container = document.getElementById('body-3d-container');
         if (!container) return;
@@ -859,97 +879,100 @@
         const bodyGroup = new THREE.Group();
         const matInactivo = new THREE.MeshStandardMaterial({ color: 0x2a2a35, roughness: 0.5 });
     
-        bodyMeshes.cabeza = new THREE.Mesh(new THREE.SphereGeometry(0.35, 16, 16), matInactivo.clone());
+        bodyMeshes.cabeza = tagBodyMesh(new THREE.Mesh(new THREE.SphereGeometry(0.35, 16, 16), matInactivo.clone()), 'cabeza');
         bodyMeshes.cabeza.position.set(0, 2.2, 0);
         bodyGroup.add(bodyMeshes.cabeza);
     
-        bodyMeshes.trapecios = new THREE.Mesh(new THREE.BoxGeometry(1.1, 0.3, 0.45), matInactivo.clone());
+        bodyMeshes.trapecios = tagBodyMesh(new THREE.Mesh(new THREE.BoxGeometry(1.1, 0.3, 0.45), matInactivo.clone()), 'trapecios');
         bodyMeshes.trapecios.position.set(0, 1.65, -0.05);
         bodyGroup.add(bodyMeshes.trapecios);
 
         bodyMeshes.hombroFrente = new THREE.Group();
         const homFrGeo = new THREE.SphereGeometry(0.18, 12, 12);
-        const homFrIzq = new THREE.Mesh(homFrGeo, matInactivo.clone()); homFrIzq.position.set(-0.85, 1.58, 0.12);
-        const homFrDer = new THREE.Mesh(homFrGeo, matInactivo.clone()); homFrDer.position.set(0.85, 1.58, 0.12);
+        const homFrIzq = tagBodyMesh(new THREE.Mesh(homFrGeo, matInactivo.clone()), 'hombroFrente'); homFrIzq.position.set(-0.85, 1.58, 0.12);
+        const homFrDer = tagBodyMesh(new THREE.Mesh(homFrGeo, matInactivo.clone()), 'hombroFrente'); homFrDer.position.set(0.85, 1.58, 0.12);
         bodyMeshes.hombroFrente.add(homFrIzq, homFrDer);
         bodyGroup.add(bodyMeshes.hombroFrente);
 
         bodyMeshes.hombroTrasero = new THREE.Group();
         const homTrGeo = new THREE.SphereGeometry(0.16, 12, 12);
-        const homTrIzq = new THREE.Mesh(homTrGeo, matInactivo.clone()); homTrIzq.position.set(-0.85, 1.55, -0.18);
-        const homTrDer = new THREE.Mesh(homTrGeo, matInactivo.clone()); homTrDer.position.set(0.85, 1.55, -0.18);
+        const homTrIzq = tagBodyMesh(new THREE.Mesh(homTrGeo, matInactivo.clone()), 'hombroTrasero'); homTrIzq.position.set(-0.85, 1.55, -0.18);
+        const homTrDer = tagBodyMesh(new THREE.Mesh(homTrGeo, matInactivo.clone()), 'hombroTrasero'); homTrDer.position.set(0.85, 1.55, -0.18);
         bodyMeshes.hombroTrasero.add(homTrIzq, homTrDer);
         bodyGroup.add(bodyMeshes.hombroTrasero);
     
-        bodyMeshes.pecho = new THREE.Mesh(new THREE.BoxGeometry(1.1, 0.7, 0.35), matInactivo.clone());
+        bodyMeshes.pecho = tagBodyMesh(new THREE.Mesh(new THREE.BoxGeometry(1.1, 0.7, 0.35), matInactivo.clone()), 'pecho');
         bodyMeshes.pecho.position.set(0, 1.2, 0.2);
         bodyGroup.add(bodyMeshes.pecho);
     
-        bodyMeshes.amplitudEspalda = new THREE.Mesh(new THREE.BoxGeometry(1.3, 0.7, 0.3), matInactivo.clone());
+        bodyMeshes.amplitudEspalda = tagBodyMesh(new THREE.Mesh(new THREE.BoxGeometry(1.3, 0.7, 0.3), matInactivo.clone()), 'amplitudEspalda');
         bodyMeshes.amplitudEspalda.position.set(0, 1.25, -0.2);
         bodyGroup.add(bodyMeshes.amplitudEspalda);
     
-        bodyMeshes.densidadEspalda = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.6, 0.3), matInactivo.clone());
+        bodyMeshes.densidadEspalda = tagBodyMesh(new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.6, 0.3), matInactivo.clone()), 'densidadEspalda');
         bodyMeshes.densidadEspalda.position.set(0, 0.65, -0.2);
         bodyGroup.add(bodyMeshes.densidadEspalda);
     
-        bodyMeshes.abdomen = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.8, 0.35), matInactivo.clone());
+        bodyMeshes.abdomen = tagBodyMesh(new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.8, 0.35), matInactivo.clone()), 'abdomen');
         bodyMeshes.abdomen.position.set(0, 0.4, 0.2);
         bodyGroup.add(bodyMeshes.abdomen);
     
         bodyMeshes.brazos = new THREE.Group();
         const brazoGeo = new THREE.CylinderGeometry(0.18, 0.15, 1.1, 12);
-        const bIzq = new THREE.Mesh(brazoGeo, matInactivo.clone()); bIzq.position.set(-0.8, 1.1, 0);
-        const bDer = new THREE.Mesh(brazoGeo, matInactivo.clone()); bDer.position.set(0.8, 1.1, 0);
+        const bIzq = tagBodyMesh(new THREE.Mesh(brazoGeo, matInactivo.clone()), 'brazos'); bIzq.position.set(-0.8, 1.1, 0);
+        const bDer = tagBodyMesh(new THREE.Mesh(brazoGeo, matInactivo.clone()), 'brazos'); bDer.position.set(0.8, 1.1, 0);
         bodyMeshes.brazos.add(bIzq, bDer);
         bodyGroup.add(bodyMeshes.brazos);
     
         bodyMeshes.antebrazo = new THREE.Group();
         const anteGeo = new THREE.CylinderGeometry(0.14, 0.11, 1.0, 12);
-        const antIzq = new THREE.Mesh(anteGeo, matInactivo.clone()); antIzq.position.set(-0.8, -0.1, 0);
-        const antDer = new THREE.Mesh(anteGeo, matInactivo.clone()); antDer.position.set(0.8, -0.1, 0);
+        const antIzq = tagBodyMesh(new THREE.Mesh(anteGeo, matInactivo.clone()), 'antebrazo'); antIzq.position.set(-0.8, -0.1, 0);
+        const antDer = tagBodyMesh(new THREE.Mesh(anteGeo, matInactivo.clone()), 'antebrazo'); antDer.position.set(0.8, -0.1, 0);
         bodyMeshes.antebrazo.add(antIzq, antDer);
         bodyGroup.add(bodyMeshes.antebrazo);
     
+        // Abductor (cara externa del muslo) y aductor (cara interna): antes eran
+        // cajas rectangulares planas que se veían raras; ahora son cápsulas
+        // redondeadas (cilindros) pegadas a la cadera, con una forma más natural.
         bodyMeshes.abductor = new THREE.Group();
-        const abdGeo = new THREE.BoxGeometry(0.28, 0.7, 0.35);
-        const abdIzq = new THREE.Mesh(abdGeo, matInactivo.clone()); abdIzq.position.set(-0.6, -0.7, 0);
-        const abdDer = new THREE.Mesh(abdGeo, matInactivo.clone()); abdDer.position.set(0.6, -0.7, 0);
+        const abdGeo = new THREE.CylinderGeometry(0.13, 0.16, 0.55, 12);
+        const abdIzq = tagBodyMesh(new THREE.Mesh(abdGeo, matInactivo.clone()), 'abductor'); abdIzq.position.set(-0.62, -0.8, 0); abdIzq.rotation.z = 0.12;
+        const abdDer = tagBodyMesh(new THREE.Mesh(abdGeo, matInactivo.clone()), 'abductor'); abdDer.position.set(0.62, -0.8, 0); abdDer.rotation.z = -0.12;
         bodyMeshes.abductor.add(abdIzq, abdDer);
         bodyGroup.add(bodyMeshes.abductor);
     
         bodyMeshes.aductor = new THREE.Group();
-        const aduGeo = new THREE.BoxGeometry(0.25, 0.7, 0.35);
-        const aduIzq = new THREE.Mesh(aduGeo, matInactivo.clone()); aduIzq.position.set(-0.3, -0.7, 0);
-        const aduDer = new THREE.Mesh(aduGeo, matInactivo.clone()); aduDer.position.set(0.3, -0.7, 0);
+        const aduGeo = new THREE.CylinderGeometry(0.11, 0.14, 0.5, 12);
+        const aduIzq = tagBodyMesh(new THREE.Mesh(aduGeo, matInactivo.clone()), 'aductor'); aduIzq.position.set(-0.22, -0.78, 0.08);
+        const aduDer = tagBodyMesh(new THREE.Mesh(aduGeo, matInactivo.clone()), 'aductor'); aduDer.position.set(0.22, -0.78, 0.08);
         bodyMeshes.aductor.add(aduIzq, aduDer);
         bodyGroup.add(bodyMeshes.aductor);
 
         bodyMeshes.gluteos = new THREE.Group();
         const gluGeo = new THREE.BoxGeometry(0.32, 0.35, 0.3);
-        const gluIzq = new THREE.Mesh(gluGeo, matInactivo.clone()); gluIzq.position.set(-0.3, -0.85, -0.2);
-        const gluDer = new THREE.Mesh(gluGeo, matInactivo.clone()); gluDer.position.set(0.3, -0.85, -0.2);
+        const gluIzq = tagBodyMesh(new THREE.Mesh(gluGeo, matInactivo.clone()), 'gluteos'); gluIzq.position.set(-0.3, -0.85, -0.2);
+        const gluDer = tagBodyMesh(new THREE.Mesh(gluGeo, matInactivo.clone()), 'gluteos'); gluDer.position.set(0.3, -0.85, -0.2);
         bodyMeshes.gluteos.add(gluIzq, gluDer);
         bodyGroup.add(bodyMeshes.gluteos);
 
         bodyMeshes.cuadriceps = new THREE.Group();
         const cuadGeo = new THREE.BoxGeometry(0.34, 0.9, 0.3);
-        const cuadIzq = new THREE.Mesh(cuadGeo, matInactivo.clone()); cuadIzq.position.set(-0.4, -1.3, 0.12);
-        const cuadDer = new THREE.Mesh(cuadGeo, matInactivo.clone()); cuadDer.position.set(0.4, -1.3, 0.12);
+        const cuadIzq = tagBodyMesh(new THREE.Mesh(cuadGeo, matInactivo.clone()), 'cuadriceps'); cuadIzq.position.set(-0.4, -1.3, 0.12);
+        const cuadDer = tagBodyMesh(new THREE.Mesh(cuadGeo, matInactivo.clone()), 'cuadriceps'); cuadDer.position.set(0.4, -1.3, 0.12);
         bodyMeshes.cuadriceps.add(cuadIzq, cuadDer);
         bodyGroup.add(bodyMeshes.cuadriceps);
 
         bodyMeshes.isquiotibiales = new THREE.Group();
         const isqGeo = new THREE.BoxGeometry(0.32, 0.9, 0.28);
-        const isqIzq = new THREE.Mesh(isqGeo, matInactivo.clone()); isqIzq.position.set(-0.4, -1.3, -0.15);
-        const isqDer = new THREE.Mesh(isqGeo, matInactivo.clone()); isqDer.position.set(0.4, -1.3, -0.15);
+        const isqIzq = tagBodyMesh(new THREE.Mesh(isqGeo, matInactivo.clone()), 'isquiotibiales'); isqIzq.position.set(-0.4, -1.3, -0.15);
+        const isqDer = tagBodyMesh(new THREE.Mesh(isqGeo, matInactivo.clone()), 'isquiotibiales'); isqDer.position.set(0.4, -1.3, -0.15);
         bodyMeshes.isquiotibiales.add(isqIzq, isqDer);
         bodyGroup.add(bodyMeshes.isquiotibiales);
     
         bodyMeshes.pantorrillas = new THREE.Group();
         const pantGeo = new THREE.CylinderGeometry(0.16, 0.12, 1.0, 12);
-        const pantIzq = new THREE.Mesh(pantGeo, matInactivo.clone()); pantIzq.position.set(-0.45, -1.9, -0.05);
-        const pantDer = new THREE.Mesh(pantGeo, matInactivo.clone()); pantDer.position.set(0.45, -1.9, -0.05);
+        const pantIzq = tagBodyMesh(new THREE.Mesh(pantGeo, matInactivo.clone()), 'pantorrillas'); pantIzq.position.set(-0.45, -1.9, -0.05);
+        const pantDer = tagBodyMesh(new THREE.Mesh(pantGeo, matInactivo.clone()), 'pantorrillas'); pantDer.position.set(0.45, -1.9, -0.05);
         bodyMeshes.pantorrillas.add(pantIzq, pantDer);
         bodyGroup.add(bodyMeshes.pantorrillas);
     
@@ -962,6 +985,8 @@
             renderer.render(scene, camera);
         }
         animate();
+
+        setup3DBodyTapInteraction(container);
     }
     
     // Mapa DIRECTO entre el "primary" (grupo muscular) de cada ejercicio en
@@ -988,6 +1013,44 @@
         hamstrings: ['isquiotibiales']
     };
 
+    const bodyKeyLabels = {
+        cabeza: 'Cabeza',
+        trapecios: 'Trapecios',
+        hombroFrente: 'Hombro (frontal)',
+        hombroTrasero: 'Hombro (posterior)',
+        pecho: 'Pecho',
+        amplitudEspalda: 'Espalda (amplitud)',
+        densidadEspalda: 'Espalda (densidad)',
+        abdomen: 'Abdomen',
+        brazos: 'Brazos (bíceps / tríceps)',
+        antebrazo: 'Antebrazos',
+        abductor: 'Abductores',
+        aductor: 'Aductores',
+        gluteos: 'Glúteos',
+        cuadriceps: 'Cuádriceps',
+        isquiotibiales: 'Isquiotibiales',
+        pantorrillas: 'Pantorrillas'
+    };
+
+    // Colores según CANTIDAD DE EJERCICIOS DISTINTOS trabajados ese día para
+    // esa zona (no según volumen): 0 = verde, 1 = amarillo, 2 = anaranjado,
+    // 3 = rojo, más de 3 = marrón. La cabeza no es una zona entrenable, así
+    // que se deja siempre en verde clarito solo como referencia de la forma.
+    const COLOR_SIN_ENTRENAR = 0x2ecc71;   // verde
+    const COLOR_UN_EJERCICIO = 0xffd600;   // amarillo
+    const COLOR_DOS_EJERCICIOS = 0xff9800; // anaranjado
+    const COLOR_TRES_EJERCICIOS = 0xff1744;// rojo
+    const COLOR_MAS_DE_TRES = 0x795548;    // marrón
+    const COLOR_FORMA_NEUTRA = 0x9ccc9a;   // verde clarito (solo cabeza, de referencia)
+
+    function colorSegunCantidadEjercicios(count) {
+        if (count <= 0) return COLOR_SIN_ENTRENAR;
+        if (count === 1) return COLOR_UN_EJERCICIO;
+        if (count === 2) return COLOR_DOS_EJERCICIOS;
+        if (count === 3) return COLOR_TRES_EJERCICIOS;
+        return COLOR_MAS_DE_TRES;
+    }
+
     function pintarMalla3D(key, color) {
         const item = bodyMeshes[key];
         if (!item) return;
@@ -998,14 +1061,22 @@
         }
     }
 
+    // Detalle del día que se está mostrando actualmente en el modelo 3D,
+    // usado para el panel que aparece al tocar/hacer clic en una zona.
+    let currentBodyDayDetails = { dateStr: '', byMeshKey: {} };
+
     function update3DBodyForDate(dateStr) {
         const label = document.getElementById('current-workout-date');
         if (label) label.innerText = dateStr;
+
+        const detailPanel = document.getElementById('body-part-detail');
+        if (detailPanel) detailPanel.style.display = 'none';
     
-        const colorInactivo = 0x2a2a35;
-        const colorEntrenado = 0xff5722; 
-    
-        Object.keys(bodyMeshes).forEach(key => pintarMalla3D(key, colorInactivo));
+        // La cabeza siempre queda en verde clarito (solo da forma), el resto
+        // arranca en "verde = no entrenado" y se va coloreando según abajo.
+        Object.keys(bodyMeshes).forEach(key => {
+            pintarMalla3D(key, key === 'cabeza' ? COLOR_FORMA_NEUTRA : COLOR_SIN_ENTRENAR);
+        });
 
         // Usamos rawCloudRows (los datos reales ya sincronizados desde la nube),
         // igual que el resto de la app, en vez de la variable "workoutData" que
@@ -1016,6 +1087,10 @@
             return d === dateStr;
         });
 
+        // Agrupamos por malla (no por "primary") porque, por ejemplo, bíceps y
+        // tríceps comparten la misma malla "brazos": así el color y el detalle
+        // consideran el total combinado de ejercicios distintos de esa zona.
+        const detailsByMeshKey = {};
         entrenamientosDelDia.forEach(row => {
             const exObj = exercisesDatabase.find(e => e.name.toLowerCase() === (row.exercise || "").toLowerCase());
             if (!exObj || !exObj.primary) return;
@@ -1023,7 +1098,77 @@
             const meshKeys = primaryToBodyMeshKeys[exObj.primary];
             if (!meshKeys) return;
 
-            meshKeys.forEach(key => pintarMalla3D(key, colorEntrenado));
+            const weightKg = row.unit === 'lbs' ? parseFloat(row.weight) * 0.453592 : parseFloat(row.weight);
+            const reps = parseInt(row.reps);
+            const vol = (isNaN(weightKg) || isNaN(reps)) ? 0 : weightKg * (row.isUnilateral === 'si' ? reps * 2 : reps);
+
+            meshKeys.forEach(meshKey => {
+                if (!detailsByMeshKey[meshKey]) detailsByMeshKey[meshKey] = {};
+                if (!detailsByMeshKey[meshKey][exObj.name]) {
+                    detailsByMeshKey[meshKey][exObj.name] = { sets: 0, totalVol: 0 };
+                }
+                detailsByMeshKey[meshKey][exObj.name].sets += 1;
+                detailsByMeshKey[meshKey][exObj.name].totalVol += vol;
+            });
+        });
+
+        Object.keys(bodyMeshes).forEach(key => {
+            if (key === 'cabeza') return;
+            const exerciseCount = detailsByMeshKey[key] ? Object.keys(detailsByMeshKey[key]).length : 0;
+            pintarMalla3D(key, colorSegunCantidadEjercicios(exerciseCount));
+        });
+
+        currentBodyDayDetails = { dateStr, byMeshKey: detailsByMeshKey };
+    }
+
+    function showBodyPartDetail(meshKey) {
+        const panel = document.getElementById('body-part-detail');
+        if (!panel || meshKey === 'cabeza') return;
+
+        const label = bodyKeyLabels[meshKey] || meshKey;
+        const details = (currentBodyDayDetails.byMeshKey && currentBodyDayDetails.byMeshKey[meshKey]) || {};
+        const entries = Object.entries(details);
+
+        let html = `<strong>💡 ${label} — ${currentBodyDayDetails.dateStr || ''}</strong>`;
+        if (entries.length === 0) {
+            html += `<div style="color:var(--text-muted); margin-top:6px;">Sin ejercicios registrados este día.</div>`;
+        } else {
+            html += '<ul style="margin:8px 0 0 0; padding-left:18px;">';
+            entries.forEach(([exName, info]) => {
+                html += `<li>${exName}: ${info.sets} serie(s) • ${Math.round(info.totalVol)} kg de volumen</li>`;
+            });
+            html += '</ul>';
+        }
+        panel.innerHTML = html;
+        panel.style.display = 'block';
+    }
+
+    // Permite "apachar" (tocar/hacer clic) una zona del modelo 3D para ver
+    // qué ejercicio(s) se hicieron ahí y su volumen, ese día en concreto.
+    function setup3DBodyTapInteraction(container) {
+        const raycaster = new THREE.Raycaster();
+        const mouse = new THREE.Vector2();
+        let pointerDownPos = null;
+
+        function handleTap(clientX, clientY) {
+            const rect = container.getBoundingClientRect();
+            mouse.x = ((clientX - rect.left) / rect.width) * 2 - 1;
+            mouse.y = -((clientY - rect.top) / rect.height) * 2 + 1;
+            raycaster.setFromCamera(mouse, camera);
+            const intersects = raycaster.intersectObjects(scene.children, true);
+            const hit = intersects.find(i => i.object && i.object.userData && i.object.userData.bodyKey);
+            if (hit) showBodyPartDetail(hit.object.userData.bodyKey);
+        }
+
+        container.addEventListener('pointerdown', (e) => { pointerDownPos = { x: e.clientX, y: e.clientY }; });
+        container.addEventListener('pointerup', (e) => {
+            if (!pointerDownPos) return;
+            const dx = e.clientX - pointerDownPos.x;
+            const dy = e.clientY - pointerDownPos.y;
+            pointerDownPos = null;
+            // Solo lo tratamos como "toque" si no hubo arrastre (rotar la cámara),
+            // así no se abre el detalle cada vez que giras el modelo.
+            if (Math.sqrt(dx * dx + dy * dy) < 6) handleTap(e.clientX, e.clientY);
         });
     }
 
@@ -1985,24 +2130,133 @@
         if (yearEl) yearEl.textContent = formatMinutesReadable(totalYear);
     }
 
+    // --- CRONÓMETRO DE ENTRENO: persistencia y aviso de "tiempo fuera de la app" ---
+    // El reloj YA NO se reinicia si sales/entras a la app: el tiempo transcurrido
+    // se calcula siempre contra la hora real de inicio (workoutStartTime), y esa
+    // hora se guarda en localStorage para sobrevivir a que el navegador/PWA se
+    // cierre en segundo plano. Solo se detiene cuando tocas "Finalizar Entreno".
+    const AWAY_ALERT_THRESHOLD_MS = 5 * 60 * 1000; // 5 minutos
+
+    function workoutSessionStorageKey() {
+        return `activeWorkoutSession_${(userEmail || '').toLowerCase()}`;
+    }
+    function workoutHiddenAtStorageKey() {
+        return `workoutHiddenAt_${(userEmail || '').toLowerCase()}`;
+    }
+
+    function persistActiveWorkoutSession() {
+        if (!userEmail) return;
+        localStorage.setItem(workoutSessionStorageKey(), JSON.stringify({
+            active: true,
+            startTime: workoutStartTime ? workoutStartTime.toISOString() : null
+        }));
+    }
+
+    function clearActiveWorkoutSession() {
+        if (!userEmail) return;
+        localStorage.removeItem(workoutSessionStorageKey());
+        localStorage.removeItem(workoutHiddenAtStorageKey());
+    }
+
+    function startWorkoutTicker() {
+        if (workoutTimerInterval) clearInterval(workoutTimerInterval);
+        workoutTimerInterval = setInterval(() => {
+            const diffSecs = Math.floor((new Date() - workoutStartTime) / 1000);
+            const hrs = String(Math.floor(diffSecs / 3600)).padStart(2, '0');
+            const mins = String(Math.floor((diffSecs % 3600) / 60)).padStart(2, '0');
+            const secs = String(diffSecs % 60).padStart(2, '0');
+            const timerEl = document.getElementById('session-timer');
+            if (timerEl) timerEl.textContent = `${hrs}:${mins}:${secs}`;
+            updateTimeTotals();
+        }, 1000);
+    }
+
+    // Al recargar la página (o volver a abrir la app) con una sesión activa
+    // guardada, la restauramos en vez de dejar todo en 00:00:00.
+    function restoreActiveWorkoutSessionIfAny() {
+        if (!userEmail) return;
+        const raw = localStorage.getItem(workoutSessionStorageKey());
+        if (!raw) return;
+        try {
+            const saved = JSON.parse(raw);
+            if (saved && saved.active && saved.startTime) {
+                isWorkoutActive = true;
+                workoutStartTime = new Date(saved.startTime);
+
+                const btn = document.getElementById('btn-toggle-workout');
+                const status = document.getElementById('session-status');
+                if (btn) { btn.textContent = "🛑 Finalizar Entreno"; btn.style.backgroundColor = "var(--danger)"; btn.style.color = "#fff"; }
+                if (status) status.textContent = "Entrenando en Curso";
+
+                startWorkoutTicker();
+            }
+        } catch (e) {
+            console.error("No se pudo restaurar la sesión de entreno activa:", e);
+        }
+    }
+
+    function requestNotificationPermissionIfNeeded() {
+        if (window.Notification && Notification.permission === 'default') {
+            Notification.requestPermission().catch(() => {});
+        }
+    }
+
+    function notifyAwayFromApp(minutesAway) {
+        const msg = `⏱️ Llevas ${minutesAway} minutos fuera de la app con el entreno activo. No olvides continuar o darle "Finalizar Entreno".`;
+        if (window.Notification && Notification.permission === 'granted') {
+            try { new Notification('Entreno en curso', { body: msg }); }
+            catch (e) { console.error(e); }
+        }
+        alert(msg);
+    }
+
+    // Guarda el momento en que la app pasa a segundo plano (cambias de app,
+    // apagas pantalla, cierras la pestaña/PWA) mientras hay un entreno activo.
+    function markAppHiddenIfWorkoutActive() {
+        if (!isWorkoutActive || !userEmail) return;
+        localStorage.setItem(workoutHiddenAtStorageKey(), String(Date.now()));
+    }
+
+    // Al volver a la app (o al cargarla de nuevo), revisa cuánto tiempo pasó
+    // fuera; si fue más de 5 minutos y el entreno sigue activo, avisa.
+    function checkAwayGapAndAlertIfNeeded() {
+        if (!isWorkoutActive || !userEmail) return;
+        const raw = localStorage.getItem(workoutHiddenAtStorageKey());
+        if (!raw) return;
+        localStorage.removeItem(workoutHiddenAtStorageKey());
+
+        const hiddenAt = parseInt(raw, 10);
+        if (isNaN(hiddenAt)) return;
+
+        const gapMs = Date.now() - hiddenAt;
+        if (gapMs > AWAY_ALERT_THRESHOLD_MS) {
+            notifyAwayFromApp(Math.round(gapMs / 60000));
+        }
+    }
+
+    document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'hidden') {
+            markAppHiddenIfWorkoutActive();
+        } else if (document.visibilityState === 'visible') {
+            checkAwayGapAndAlertIfNeeded();
+        }
+    });
+    window.addEventListener('pagehide', markAppHiddenIfWorkoutActive);
+    window.addEventListener('beforeunload', markAppHiddenIfWorkoutActive);
+
     function toggleWorkoutSession() {
         const btn = document.getElementById('btn-toggle-workout');
         const status = document.getElementById('session-status');
         
         if (!isWorkoutActive) {
+            requestNotificationPermissionIfNeeded();
+
             isWorkoutActive = true; workoutStartTime = new Date();
             btn.textContent = "🛑 Finalizar Entreno"; btn.style.backgroundColor = "var(--danger)"; btn.style.color = "#fff";
             status.textContent = "Entrenando en Curso";
-            
-            workoutTimerInterval = setInterval(() => {
-                const diffSecs = Math.floor((new Date() - workoutStartTime) / 1000);
-                const hrs = String(Math.floor(diffSecs / 3600)).padStart(2, '0');
-                const mins = String(Math.floor((diffSecs % 3600) / 60)).padStart(2, '0');
-                const secs = String(diffSecs % 60).padStart(2, '0');
-                const timerEl = document.getElementById('session-timer');
-                if (timerEl) timerEl.textContent = `${hrs}:${mins}:${secs}`;
-                updateTimeTotals();
-            }, 1000);
+
+            persistActiveWorkoutSession();
+            startWorkoutTicker();
         } else {
             isWorkoutActive = false; clearInterval(workoutTimerInterval);
             const endTime = new Date();
@@ -2016,6 +2270,7 @@
             document.getElementById('routine-selector').value = "";
             filterExercisesByRoutine();
             sendToSheetsAsync({ action: "CREATE", recordType: "Sesión Finalizada", durationMinutes: duration });
+            clearActiveWorkoutSession();
             updateTimeTotals();
         }
     }
