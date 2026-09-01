@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Gym Tracker Cloud Sync & Analytics</title>
+    <title>Gym Tracker Cloud Sync & Analytics PRO</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         :root {
@@ -65,10 +65,12 @@
 
         label { display: block; font-size: 0.85rem; color: var(--text-muted); margin-bottom: 5px; }
 
-        input, select, button {
+        input, select, textarea, button {
             width: 100%; padding: 10px; border-radius: 8px; border: 1px solid var(--border-color);
             background-color: #16161a; color: var(--text-main); box-sizing: border-box; font-size: 0.95rem;
         }
+
+        textarea { resize: vertical; min-height: 60px; font-family: inherit; }
 
         button { background-color: var(--accent); color: #000; font-weight: bold; cursor: pointer; border: none; margin-top: 10px; }
         .btn-danger { background-color: var(--danger); color: #fff; }
@@ -93,6 +95,11 @@
             color: var(--accent-pr); padding: 6px 12px; border-radius: 6px; font-size: 0.85rem;
             margin-top: 5px; display: inline-block;
         }
+        .streak-badge {
+            background-color: rgba(0, 230, 118, 0.15); border: 1px solid var(--accent);
+            color: var(--accent); padding: 4px 10px; border-radius: 20px; font-size: 0.75rem;
+            font-weight: bold; display: inline-block; margin-top: 4px;
+        }
 
         .rest-timer-box {
             background: #16161a; border: 1px dashed var(--accent);
@@ -106,11 +113,7 @@
         .body-map-card span { display: block; font-size: 0.8rem; color: var(--text-muted); margin-bottom: 8px; font-weight: bold; }
         
         svg path { 
-            fill: #2a2a35; 
-            stroke: #121214; 
-            stroke-width: 1.5; 
-            stroke-linejoin: round;
-            stroke-linecap: round;
+            fill: #2a2a35; stroke: #121214; stroke-width: 1.5; stroke-linejoin: round; stroke-linecap: round;
             transition: fill 0.4s ease; 
         }
 
@@ -122,10 +125,7 @@
             padding: 10px 4px; background: #16161a; border-radius: 6px; font-size: 0.8rem; 
             border: 1px solid var(--border-color); cursor: pointer; transition: all 0.2s;
         }
-        .calendar-day.trained { 
-            border-color: var(--accent); background-color: rgba(0, 230, 118, 0.2); 
-            font-weight: bold; color: var(--accent); 
-        }
+        .calendar-day.trained { border-color: var(--accent); background-color: rgba(0, 230, 118, 0.2); font-weight: bold; color: var(--accent); }
         .calendar-day:hover { border-color: #fff; }
 
         table { width: 100%; border-collapse: collapse; }
@@ -156,7 +156,6 @@
         .checkbox-item input { width: auto; }
 
         .grid-2-col { display: grid; grid-template-columns: 2fr 1fr; gap: 10px; }
-
         @media (max-width: 600px) { .set-grid { grid-template-columns: 1fr 1fr; } .grid-2-col { grid-template-columns: 1fr; } }
     </style>
 </head>
@@ -187,6 +186,15 @@
     </div>
 </div>
 
+<!-- MODAL DE LOGRO / PR -->
+<div id="pr-modal" class="modal-overlay" style="display:none;">
+    <div class="modal-card" style="max-width: 350px; text-align: center; border: 2px solid var(--accent-pr);">
+        <h2 style="color: var(--accent-pr); border:none;">🏆 ¡NUEVO PR / RÉCORD! 🏆</h2>
+        <p id="pr-modal-text" style="font-size: 1rem; margin: 15px 0;"></p>
+        <button onclick="document.getElementById('pr-modal').style.display='none'">¡A por más!</button>
+    </div>
+</div>
+
 <!-- MODAL RESUMEN PARA HISTORIAS -->
 <div id="story-modal" class="modal-overlay" style="display:none;">
     <div class="modal-card" style="max-width: 440px; text-align: center; background: linear-gradient(145deg, #1e1e24, #121214); border: 2px solid var(--accent); border-radius: 20px; padding: 20px;">
@@ -207,7 +215,6 @@
             </div>
         </div>
 
-        <!-- Cuerpecito Resumen en la Historia -->
         <div style="background: #16161a; padding: 8px; border-radius: 10px; border: 1px solid var(--border-color); margin-bottom: 12px;">
             <span style="font-size: 0.7rem; color: var(--text-muted); font-weight: bold; display: block; margin-bottom: 5px;">ZONAS TRABAJADAS EN ESTA SESIÓN</span>
             <div class="body-maps-wrapper" style="transform: scale(0.75); transform-origin: center; margin: -20px 0;">
@@ -245,9 +252,7 @@
             </div>
         </div>
 
-        <div style="text-align: left; background: #16161a; padding: 12px; border-radius: 10px; border: 1px solid var(--border-color); max-height: 160px; overflow-y: auto; margin-bottom: 12px;" id="story-exercises-list">
-        </div>
-        
+        <div style="text-align: left; background: #16161a; padding: 12px; border-radius: 10px; border: 1px solid var(--border-color); max-height: 160px; overflow-y: auto; margin-bottom: 12px;" id="story-exercises-list"></div>
         <button class="btn-secondary" onclick="closeStoryModal()" style="width: 100%; margin-top: 0;">Cerrar</button>
     </div>
 </div>
@@ -259,6 +264,7 @@
             <div>
                 <span style="font-size:0.85rem; color:var(--text-muted);">Bienvenido: <strong id="user-display" style="color:#fff;">-</strong></span>
                 <div id="session-status" style="font-weight:bold; margin-top: 2px;">Sin Iniciar</div>
+                <div id="streak-display" class="streak-badge">🔥 Racha: 0 días</div>
             </div>
         </div>
         <div class="timer-status" id="session-timer">00:00:00</div>
@@ -301,6 +307,7 @@
                         <label>Ejercicio a Registrar</label>
                         <select id="exercise-select" onchange="updateExercisePrBadge()" required></select>
                         <div id="pr-info-badge" class="pr-badge">Récord Max: Selecciona un ejercicio</div>
+                        <div id="overload-suggestion" style="font-size:0.75rem; color:var(--accent); margin-top:4px;"></div>
                     </div>
 
                     <div class="form-group">
@@ -317,7 +324,12 @@
                         <button type="button" class="btn-secondary" onclick="addSetRow()">➕ Agregar Otra Serie</button>
                     </div>
 
-                    <button type="submit" id="btn-submit-workout" style="margin-top:20px;">Guardar Ejercicio y Series</button>
+                    <div class="form-group" style="margin-top: 15px;">
+                        <label>📝 Notas Técnicas / Sensaciones de este Ejercicio</label>
+                        <textarea id="exercise-session-note" placeholder="Ej. Sensación excelente, subir peso la próxima vez..."></textarea>
+                    </div>
+
+                    <button type="submit" id="btn-submit-workout" style="margin-top:10px;">Guardar Ejercicio y Series</button>
                 </form>
             </div>
 
@@ -328,8 +340,8 @@
                         <tr>
                             <th>Fecha</th>
                             <th>Ejercicio</th>
-                            <th>Desglose de Series</th>
-                            <th>Volumen Total</th>
+                            <th>Desglose</th>
+                            <th>Volumen</th>
                         </tr>
                     </thead>
                     <tbody></tbody>
@@ -417,7 +429,7 @@
             </div>
 
             <div class="card">
-                <h2>🏆 PRs y Ejercicios Realizados</h2>
+                <h2>🏆 PRs, 1RM Teórico y Notas</h2>
                 <div id="stats-summary-list" style="font-size:0.9rem;"></div>
             </div>
         </div>
@@ -822,6 +834,22 @@
         }
     }
 
+    // Alerta sonora para temporizador de descanso
+    function playBeepSound() {
+        try {
+            const ctx = new (window.AudioContext || window.webkitAudioContext)();
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(587.33, ctx.currentTime); // D5 note
+            gain.gain.setValueAtTime(0.1, ctx.currentTime);
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+            osc.start();
+            osc.stop(ctx.currentTime + 0.6);
+        } catch(e) { console.log(e); }
+    }
+
     function toggleRestTimer() {
         const btn = document.getElementById('btn-toggle-rest');
         const display = document.getElementById('rest-timer-display');
@@ -833,10 +861,13 @@
                 const mins = String(Math.floor(currentRestSeconds / 60)).padStart(2, '0');
                 const secs = String(currentRestSeconds % 60).padStart(2, '0');
                 display.textContent = `${mins}:${secs}`;
+                
+                // Si llega a 90s sugeridos por defecto por ejemplo, o al tocar detener
             }, 1000);
         } else {
             isRestTimerActive = false; clearInterval(restTimerInterval);
             btn.textContent = "Iniciar Descanso"; btn.style.backgroundColor = "var(--accent)";
+            playBeepSound();
             const lastRestInput = document.querySelector('.set-row:last-child .set-rest');
             if (lastRestInput) lastRestInput.value = currentRestSeconds;
             display.textContent = "00:00"; currentRestSeconds = 0;
@@ -855,7 +886,6 @@
         fetch(`${scriptUrl}?email=${encodeURIComponent(userEmail)}`)
             .then(res => res.json())
             .then(data => {
-                // Filtrar exclusivamente los registros correspondientes al usuario que entra
                 rawCloudRows = data.filter(r => (r.userEmail || "").toLowerCase() === userEmail.toLowerCase());
                 document.getElementById('login-modal').style.display = 'none';
                 document.getElementById('profile-current-user').value = userEmail;
@@ -883,6 +913,7 @@
         renderCalendar();
 
         const exerciseGroups = {};
+        const trainedDatesSet = new Set();
 
         rows.forEach(r => {
             let rowDate = (r.date && r.date.includes('T')) ? r.date.split('T')[0] : r.date;
@@ -892,23 +923,30 @@
             }
 
             if (r.recordType === "Serie Individual") {
+                trainedDatesSet.add(rowDate);
                 const exObj = exercisesDatabase.find(e => e.name.toLowerCase() === (r.exercise || "").toLowerCase());
                 const weightInKg = r.unit === 'lbs' ? parseFloat(r.weight) * 0.453592 : parseFloat(r.weight);
                 const reps = parseInt(r.reps);
 
                 if (exObj) {
+                    // Cálculo de 1RM con fórmula de Epley: weight * (1 + reps/30)
+                    const estimated1RM = weightInKg * (1 + (reps / 30));
                     if (!prRecords[exObj.id] || weightInKg > prRecords[exObj.id].weightInKg) {
-                        prRecords[exObj.id] = { weight: r.weight, unit: r.unit, weightInKg: weightInKg, date: rowDate };
+                        prRecords[exObj.id] = { 
+                            weight: r.weight, unit: r.unit, weightInKg: weightInKg, reps: reps, date: rowDate,
+                            estimated1RM: Math.round(estimated1RM), note: r.note || ""
+                        };
                     }
                 }
 
                 const groupKey = `${rowDate}_${r.exercise}`;
                 if (!exerciseGroups[groupKey]) {
-                    exerciseGroups[groupKey] = { date: rowDate, exercise: r.exercise, sets: [], totalVol: 0 };
+                    exerciseGroups[groupKey] = { date: rowDate, exercise: r.exercise, sets: [], totalVol: 0, note: r.note || "" };
                 }
 
                 const setVol = weightInKg * (r.isUnilateral === 'si' ? reps * 2 : reps);
                 exerciseGroups[groupKey].totalVol += setVol;
+                if (r.note && !exerciseGroups[groupKey].note) exerciseGroups[groupKey].note = r.note;
                 
                 const isSub = r.isSubset === "si" || r.isSubset === true;
                 const labelPrefix = isSub ? "└─ Drop" : `S${r.setNum}`;
@@ -918,15 +956,51 @@
             }
         });
 
+        // Calcular Racha de Entrenos (Streak)
+        calculateStreak(trainedDatesSet);
+
         Object.values(exerciseGroups).slice(-10).forEach(g => {
             const rowHTML = document.createElement('tr');
-            rowHTML.innerHTML = `<td>${g.date}</td><td><strong>${g.exercise}</strong></td><td>${g.sets.join('<br>')}</td><td>${Math.round(g.totalVol)} kg</td>`;
+            let noteHtml = g.note ? `<br><small style="color:var(--warning);">📝 ${g.note}</small>` : '';
+            rowHTML.innerHTML = `<td>${g.date}</td><td><strong>${g.exercise}</strong>${noteHtml}</td><td>${g.sets.join('<br>')}</td><td>${Math.round(g.totalVol)} kg</td>`;
             document.getElementById('history-table').querySelector('tbody').appendChild(rowHTML);
         });
 
         updateExercisePrBadge(); 
         updateBodyMap(); 
         initChart();
+    }
+
+    function calculateStreak(datesSet) {
+        if (datesSet.size === 0) {
+            document.getElementById('streak-display').textContent = "🔥 Racha: 0 días";
+            return;
+        }
+        const sortedDates = Array.from(datesSet).sort((a,b) => new Date(b) - new Date(a));
+        let streak = 0;
+        let today = new Date().toISOString().split('T')[0];
+        let checkDate = new Date();
+
+        // Verificar si entrenó hoy o ayer para mantener la racha viva
+        let latestDate = sortedDates[0];
+        let diffTime = Math.abs(new Date(today) - new Date(latestDate));
+        let diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+        if (diffDays > 1) {
+            streak = 0;
+        } else {
+            let currentDateCheck = new Date(latestDate);
+            for (let i = 0; i < sortedDates.length; i++) {
+                let dStr = currentDateCheck.toISOString().split('T')[0];
+                if (datesSet.has(dStr)) {
+                    streak++;
+                    currentDateCheck.setDate(currentDateCheck.getDate() - 1);
+                } else {
+                    break;
+                }
+            }
+        }
+        document.getElementById('streak-display').textContent = `🔥 Racha: ${streak} días consecutivos`;
     }
 
     function openDayModal(dateStr) {
@@ -977,22 +1051,11 @@
         const newR = document.getElementById(`edit-r-${rowIndex}`).value;
 
         const payload = {
-            action: "UPDATE_ROW",
-            rowIndex: rowIndex,
-            userEmail: userEmail,
-            date: rowData.date,
-            recordType: rowData.recordType,
-            routineName: rowData.routineName,
-            exercise: newEx,
-            setNum: rowData.setNum,
-            weight: newW,
-            unit: rowData.unit,
-            reps: newR,
-            rpe: rowData.rpe,
-            rir: rowData.rir,
-            restSeconds: rowData.restSeconds,
-            isUnilateral: rowData.isUnilateral,
-            isSubset: rowData.isSubset || "no"
+            action: "UPDATE_ROW", rowIndex: rowIndex, userEmail: userEmail, date: rowData.date,
+            recordType: rowData.recordType, routineName: rowData.routineName, exercise: newEx,
+            setNum: rowData.setNum, weight: newW, unit: rowData.unit, reps: newR,
+            rpe: rowData.rpe, rir: rowData.rir, restSeconds: rowData.restSeconds,
+            isUnilateral: rowData.isUnilateral, isSubset: rowData.isSubset || "no", note: rowData.note || ""
         };
 
         sendPayload(payload, "Serie actualizada");
@@ -1010,8 +1073,7 @@
 
     function sendPayload(payload, msg) {
         fetch(scriptUrl, {
-            method: 'POST',
-            mode: 'no-cors',
+            method: 'POST', mode: 'no-cors',
             headers: { 'Content-Type': 'text/plain;charset=utf-8' },
             body: JSON.stringify(payload)
         }).then(() => {
@@ -1058,8 +1120,12 @@
                 if (!muscleFreq[exObj.primary]) muscleFreq[exObj.primary] = new Set();
                 muscleFreq[exObj.primary].add(dStr);
 
+                const est1RM = weightKg * (1 + (reps / 30));
                 if (!exercisesInPeriod[exObj.name] || weightKg > exercisesInPeriod[exObj.name].maxWeightKg) {
-                    exercisesInPeriod[exObj.name] = { maxWeight: r.weight, unit: r.unit, maxWeightKg: weightKg };
+                    exercisesInPeriod[exObj.name] = { 
+                        maxWeight: r.weight, unit: r.unit, maxWeightKg: weightKg, 
+                        est1RM: Math.round(est1RM), note: r.note || "" 
+                    };
                 }
             }
         });
@@ -1070,11 +1136,7 @@
             type: 'bar',
             data: {
                 labels: Object.keys(muscleFreq).map(m => m.toUpperCase().replace('_', ' ')),
-                datasets: [{
-                    label: 'Días Entrenados',
-                    data: Object.values(muscleFreq).map(set => set.size),
-                    backgroundColor: '#00e676'
-                }]
+                datasets: [{ label: 'Días Entrenados', data: Object.values(muscleFreq).map(set => set.size), backgroundColor: '#00e676' }]
             },
             options: { responsive: true }
         });
@@ -1085,13 +1147,7 @@
             type: 'line',
             data: {
                 labels: Object.keys(volumePerDate),
-                datasets: [{
-                    label: 'Volumen (kg)',
-                    data: Object.values(volumePerDate),
-                    borderColor: '#ffb74d',
-                    backgroundColor: 'rgba(255, 183, 77, 0.2)',
-                    fill: true
-                }]
+                datasets: [{ label: 'Volumen (kg)', data: Object.values(volumePerDate), borderColor: '#ffb74d', backgroundColor: 'rgba(255, 183, 77, 0.2)', fill: true }]
             },
             options: { responsive: true }
         });
@@ -1105,7 +1161,8 @@
 
         let summaryHTML = "<ul>";
         Object.entries(exercisesInPeriod).forEach(([exName, info]) => {
-            summaryHTML += `<li><strong>${exName}</strong>: Máximo ${info.maxWeight} ${info.unit}</li>`;
+            let noteStr = info.note ? `<br><small style="color:var(--warning);">Nota: ${info.note}</small>` : '';
+            summaryHTML += `<li style="margin-bottom:8px;"><strong>${exName}</strong>: Máx ${info.maxWeight} ${info.unit} | <em>1RM Estimado</em>: ~${info.est1RM} kg${noteStr}</li>`;
         });
         summaryHTML += "</ul>";
         summaryContainer.innerHTML = summaryHTML;
@@ -1128,7 +1185,7 @@
                 <div><button type="button" class="btn-danger" style="margin-top:18px; padding: 10px 12px;" onclick="removeSetRow('${setCounter}')">✕</button></div>
             </div>
             <div class="subset-container" id="subset-container-${setCounter}"></div>
-            <button type="button" class="btn-sub" onclick="addSubsetRow('${setCounter}')">➕ Dropset / Subserie (Bajada de Peso)</button>
+            <button type="button" class="btn-sub" onclick="addSubsetRow('${setCounter}')">➕ Dropset / Subserie</button>
         `;
         container.appendChild(row); updateSetLabels();
     }
@@ -1169,10 +1226,13 @@
         const selectedId = document.getElementById('exercise-select').value;
         const exerciseObj = exercisesDatabase.find(e => e.id === selectedId);
         const isUnilateral = document.getElementById('is-unilateral').value;
+        const sessionNote = document.getElementById('exercise-session-note').value.trim();
         const setRows = document.querySelectorAll('.set-row');
 
         let validItemsToSend = [];
         let validSetIndex = 0;
+        let isNewPRDetected = false;
+        let prDetailsMsg = "";
 
         setRows.forEach((row) => {
             const weightVal = row.querySelector('.set-weight').value;
@@ -1181,10 +1241,16 @@
             if (weightVal !== '' && repsVal !== '') {
                 const weight = parseFloat(weightVal);
                 const reps = parseInt(repsVal);
+                const weightKg = row.querySelector('.set-unit').value === 'lbs' ? weight * 0.453592 : weight;
+
+                // Validación de PR
+                if (!prRecords[selectedId] || weightKg > prRecords[selectedId].weightInKg) {
+                    isNewPRDetected = true;
+                    prDetailsMsg = `${exerciseObj.name}: ${weight} ${row.querySelector('.set-unit').value} × ${reps} reps`;
+                }
 
                 if (!isNaN(weight) && !isNaN(reps)) {
                     validSetIndex++;
-                    
                     validItemsToSend.push({
                         action: "CREATE",
                         recordType: "Serie Individual",
@@ -1198,36 +1264,8 @@
                         rir: row.querySelector('.set-rir').value || '-',
                         restSeconds: row.querySelector('.set-rest').value || '-',
                         isUnilateral: isUnilateral,
-                        isSubset: "no"
-                    });
-
-                    const subRows = row.querySelectorAll('.subset-row');
-                    subRows.forEach(sub => {
-                        const subWVal = sub.querySelector('.subset-weight').value;
-                        const subRVal = sub.querySelector('.subset-reps').value;
-
-                        if (subWVal !== '' && subRVal !== '') {
-                            const subW = parseFloat(subWVal);
-                            const subR = parseInt(subRVal);
-
-                            if (!isNaN(subW) && !isNaN(subR)) {
-                                validItemsToSend.push({
-                                    action: "CREATE",
-                                    recordType: "Serie Individual",
-                                    routineName: document.getElementById('routine-selector').value || "Libre",
-                                    exercise: exerciseObj.name,
-                                    setNum: validSetIndex,
-                                    weight: subW,
-                                    unit: sub.querySelector('.subset-unit').value,
-                                    reps: subR,
-                                    rpe: '-',
-                                    rir: '-',
-                                    restSeconds: '-',
-                                    isUnilateral: isUnilateral,
-                                    isSubset: "si"
-                                });
-                            }
-                        }
+                        isSubset: "no",
+                        note: sessionNote
                     });
                 }
             }
@@ -1256,7 +1294,13 @@
         document.getElementById('sets-container').innerHTML = "";
         setCounter = 0; 
         addSetRow();
-        alert("Series guardadas correctamente."); 
+
+        if (isNewPRDetected) {
+            document.getElementById('pr-modal-text').textContent = prDetailsMsg;
+            document.getElementById('pr-modal').style.display = 'flex';
+        } else {
+            alert("Series guardadas correctamente.");
+        }
         setTimeout(loginAndSync, 1000);
     });
 
@@ -1287,11 +1331,15 @@
     function updateExercisePrBadge() {
         const selectedId = document.getElementById('exercise-select').value;
         const badge = document.getElementById('pr-info-badge');
+        const overloadEl = document.getElementById('overload-suggestion');
+        
         if (selectedId && prRecords[selectedId]) {
             const pr = prRecords[selectedId];
-            badge.textContent = `🏆 Máximo Récord Cloud: ${pr.weight} ${pr.unit} (${pr.date})`;
+            badge.textContent = `🏆 Máx: ${pr.weight} ${pr.unit} (${pr.reps} reps) | 1RM: ~${pr.estimated1RM}kg`;
+            overloadEl.textContent = `💡 Sugerencia sobrecarga: Intenta superar ${pr.weight} ${pr.unit} con +1 repetición o un ligero incremento.`;
         } else {
             badge.textContent = `Récord Max Cloud: Sin registros`;
+            overloadEl.textContent = `💡 Sugerencia sobrecarga: Establece tu base inicial hoy.`;
         }
     }
 
@@ -1316,7 +1364,6 @@
         allMuscles.forEach(m => { 
             const el = document.getElementById(m); 
             const elRear = document.getElementById(m + '_rear');
-            
             const targetSource = sessionSpecificData ? sessionSpecificData : muscleData;
             const currentVol = targetSource[m] || 0;
             const refVol = muscleMaxReference[m] || 3000;
@@ -1338,20 +1385,13 @@
 
     function changeMonth(direction) {
         currentCalendarMonth += direction;
-        if (currentCalendarMonth > 11) {
-            currentCalendarMonth = 0;
-            currentCalendarYear++;
-        } else if (currentCalendarMonth < 0) {
-            currentCalendarMonth = 11;
-            currentCalendarYear--;
-        }
+        if (currentCalendarMonth > 11) { currentCalendarMonth = 0; currentCalendarYear++; }
+        else if (currentCalendarMonth < 0) { currentCalendarMonth = 11; currentCalendarYear--; }
         renderCalendar();
     }
 
     function renderCalendar() {
-        const grid = document.getElementById('calendar-grid'); 
-        grid.innerHTML = '';
-        
+        const grid = document.getElementById('calendar-grid'); grid.innerHTML = '';
         const monthNames = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
         document.getElementById('calendar-month-title').textContent = `${monthNames[currentCalendarMonth]} ${currentCalendarYear}`;
 
@@ -1362,27 +1402,18 @@
         const firstDayIndex = new Date(currentCalendarYear, currentCalendarMonth, 1).getDay();
         const totalDays = new Date(currentCalendarYear, currentCalendarMonth + 1, 0).getDate();
 
-        // Espacios vacíos previos al día 1 del mes
-        for (let i = 0; i < firstDayIndex; i++) {
-            const emptyCell = document.createElement('div');
-            grid.appendChild(emptyCell);
-        }
+        for (let i = 0; i < firstDayIndex; i++) { grid.appendChild(document.createElement('div')); }
 
         for (let i = 1; i <= totalDays; i++) {
             const d = document.createElement('div');
-            d.className = 'calendar-day'; 
-            d.id = `day-${currentCalendarYear}-${currentCalendarMonth}-${i}`; 
-            d.textContent = i;
-            
+            d.className = 'calendar-day'; d.id = `day-${currentCalendarYear}-${currentCalendarMonth}-${i}`; d.textContent = i;
             const monthStr = String(currentCalendarMonth + 1).padStart(2, '0');
             const dayStr = String(i).padStart(2, '0');
             const dateStr = `${currentCalendarYear}-${monthStr}-${dayStr}`;
-            
             d.onclick = () => openDayModal(dateStr);
             grid.appendChild(d);
         }
 
-        // Marcar los días entrenados correspondientes a este mes visualizado
         rawCloudRows.forEach(r => {
             if (r.recordType === "Serie Individual") {
                 let rDate = (r.date && r.date.includes('T')) ? r.date.split('T')[0] : r.date;
@@ -1395,10 +1426,7 @@
         if (!dateStr) return;
         const parts = dateStr.split('-');
         if (parts.length < 3) return;
-        const y = parseInt(parts[0]);
-        const m = parseInt(parts[1]) - 1;
-        const day = parseInt(parts[2]);
-
+        const y = parseInt(parts[0]), m = parseInt(parts[1]) - 1, day = parseInt(parts[2]);
         if (y === currentCalendarYear && m === currentCalendarMonth) {
             const el = document.getElementById(`day-${y}-${m}-${day}`);
             if (el) el.classList.add('trained');
@@ -1410,11 +1438,8 @@
         const status = document.getElementById('session-status');
         
         if (!isWorkoutActive) {
-            isWorkoutActive = true; 
-            workoutStartTime = new Date();
-            btn.textContent = "🛑 Finalizar Entreno"; 
-            btn.style.backgroundColor = "var(--danger)"; 
-            btn.style.color = "#fff";
+            isWorkoutActive = true; workoutStartTime = new Date();
+            btn.textContent = "🛑 Finalizar Entreno"; btn.style.backgroundColor = "var(--danger)"; btn.style.color = "#fff";
             status.textContent = "Entrenando en Curso";
             
             workoutTimerInterval = setInterval(() => {
@@ -1425,28 +1450,23 @@
                 document.getElementById('session-timer').textContent = `${hrs}:${mins}:${secs}`;
             }, 1000);
         } else {
-            isWorkoutActive = false; 
-            clearInterval(workoutTimerInterval);
+            isWorkoutActive = false; clearInterval(workoutTimerInterval);
             const endTime = new Date();
             const duration = Math.round((endTime - workoutStartTime) / 60000);
             
-            btn.textContent = "🚀 Iniciar Entreno"; 
-            btn.style.backgroundColor = "var(--accent)"; 
-            btn.style.color = "#000";
+            btn.textContent = "🚀 Iniciar Entreno"; btn.style.backgroundColor = "var(--accent)"; btn.style.color = "#000";
             status.textContent = `Finalizado (${duration} min)`;
 
             generateStorySummary(workoutStartTime, endTime, duration);
 
             document.getElementById('routine-selector').value = "";
             filterExercisesByRoutine();
-
             sendToSheetsAsync({ action: "CREATE", recordType: "Sesión Finalizada", durationMinutes: duration });
         }
     }
 
     function generateStorySummary(startTime, endTime, duration) {
         const todayStr = startTime.toISOString().split('T')[0];
-        
         const currentSessionRows = rawCloudRows.filter(r => {
             if (r.recordType !== "Serie Individual") return false;
             let rDate = (r.date && r.date.includes('T')) ? r.date.split('T')[0] : r.date;
@@ -1484,9 +1504,7 @@
             }
         });
 
-        const currentAvatarSrc = document.getElementById('profile-avatar').src;
-        document.getElementById('story-avatar').src = currentAvatarSrc;
-
+        document.getElementById('story-avatar').src = document.getElementById('profile-avatar').src;
         document.getElementById('story-routine-name').textContent = `🏋️ ${activeRoutineName}`;
         document.getElementById('story-date-user').textContent = `📅 ${todayStr} • 👤 ${userName}`;
         document.getElementById('story-duration').textContent = `${duration} min`;
@@ -1501,9 +1519,8 @@
 
             [el, elRear].forEach(element => {
                 if (!element) return;
-                if (vol === 0) {
-                    element.style.fill = '#2a2a35';
-                } else {
+                if (vol === 0) element.style.fill = '#2a2a35';
+                else {
                     const ratio = Math.min(vol / ref, 1.0);
                     if (ratio <= 0.3) element.style.fill = '#1b5e20';
                     else if (ratio <= 0.6) element.style.fill = '#00e676';
@@ -1515,16 +1532,13 @@
 
         const listContainer = document.getElementById('story-exercises-list');
         listContainer.innerHTML = "";
-
         const entries = Object.entries(exerciseGroups);
         if (entries.length === 0) {
             listContainer.innerHTML = "<p style='color:var(--text-muted); text-align:center; font-size:0.8rem;'>No se registraron series en esta sesión.</p>";
         } else {
             entries.forEach(([exName, info]) => {
                 const item = document.createElement('div');
-                item.style.marginBottom = "6px";
-                item.style.borderBottom = "1px solid var(--border-color)";
-                item.style.paddingBottom = "4px";
+                item.style.cssText = "margin-bottom:6px; border-bottom:1px solid var(--border-color); padding-bottom:4px;";
                 item.innerHTML = `
                     <div style="display: flex; justify-content: space-between; font-size:0.85rem;">
                         <strong style="color:#fff;">${exName}</strong>
@@ -1537,15 +1551,11 @@
         }
 
         document.getElementById('story-modal').style.display = 'flex';
-        
-        // Reiniciar el gráfico del cuerpo para la siguiente sesión activa
         resetMuscleData();
         updateBodyMap();
     }
 
-    function closeStoryModal() {
-        document.getElementById('story-modal').style.display = 'none';
-    }
+    function closeStoryModal() { document.getElementById('story-modal').style.display = 'none'; }
 </script>
 </body>
 </html>
