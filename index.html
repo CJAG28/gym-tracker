@@ -217,7 +217,7 @@
             <label>Correo Electrónico (Gmail)</label>
             <input type="email" id="login-email" placeholder="ejemplo@gmail.com" required>
         </div>
-        <button onclick="loginAndSync()">Ingresar a la App</button>
+        <button id="login-btn" onclick="loginAndSync()">Ingresar a la App</button>
         
         <!-- Barra de carga inicialmente oculta -->
         <div id="loading-bar-container" style="display:none; margin-top: 15px;">
@@ -414,11 +414,10 @@
                 <div id="body-3d-container" style="width: 100%; height: 350px; cursor: grab; position: relative;"></div>
                 <small style="color: var(--text-muted);">💡 Arrastra con el ratón para rotar el modelo completo 3D.</small>
             </div>
-                <!-- Contenedor 3D -->
-                <div id="body-3d-container" style="width: 100%; height: 320px; cursor: grab; position: relative;"></div>
-                <small style="color: var(--text-muted);">💡 Haz clic y arrastra para rotar la figura en 3D.</small>
-            </div>
-                
+
+            <!-- 2b. MAPA MUSCULAR 2D (FRONTAL / POSTERIOR) DEL DÍA SELECCIONADO -->
+            <div class="card" style="text-align: center;">
+                <h2 style="border:none; margin:0 0 10px 0;">🗺️ Mapa Muscular del Día</h2>
                 <div class="body-maps-wrapper">
                     <div class="body-map-card">
                         <span>FRONTAL</span>
@@ -622,7 +621,6 @@
     const scriptUrl = "https://script.google.com/macros/s/AKfycbyJYgwYVzWg79zJhBuhdjPcdS0Rg6ewNx-GRhl3QpyF7s5I2QvheazF3EFUJpy9V1lS/exec";
 
     // Variables globales
-    let workoutData = []; 
     let scene, camera, renderer, bodyMeshes = {};
     let initialExercises = [
         { id: "press_banca", name: "Press de Banca Plano", primary: "chest" },
@@ -676,24 +674,32 @@
     document.addEventListener("DOMContentLoaded", async () => {
         renderCalendar();
         addSetRow();
-        
+
+        // El modelo 3D se crea ANTES de sincronizar con la nube, para que
+        // cuando lleguen los datos ya existan las mallas que hay que pintar.
+        init3DBodyModel();
+
         const savedEmail = localStorage.getItem('userEmail');
         if (savedEmail) {
-            document.getElementById('login-email').value = savedEmail;
+            document.getElementById('login-email').value = savedEmail.trim().toLowerCase();
             await loginAndSync();
+        } else {
+            const hoyStr = new Date().toISOString().split('T')[0];
+            update3DBodyForDate(hoyStr);
         }
-
-        init3DBodyModel();
-        const hoyStr = new Date().toISOString().split('T')[0];
-        setTimeout(() => update3DBodyForDate(hoyStr), 400);
     });
 
     async function loginAndSync() {
         const inputEmail = document.getElementById('login-email');
-        const emailVal = inputEmail ? inputEmail.value.trim() : "";
+        // Normalizamos el correo (sin espacios y en minúsculas) para que SIEMPRE
+        // coincida sin importar cómo se haya escrito en el teléfono o la computadora.
+        // Si un dispositivo guarda "Juan@Gmail.com" y el otro busca "juan@gmail.com",
+        // la nube nunca encontraba las filas de ese usuario: por eso "no jalaba" nada.
+        const emailVal = inputEmail ? inputEmail.value.trim().toLowerCase() : "";
         const statusText = document.getElementById('sync-status');
         const loadingContainer = document.getElementById('loading-bar-container');
         const loadingFill = document.getElementById('loading-bar-fill');
+        const loginBtn = document.getElementById('login-btn');
     
         if (!emailVal || !emailVal.includes("@") || !emailVal.includes(".")) {
             alert("Por favor, ingresa un correo electrónico válido.");
@@ -701,25 +707,51 @@
             return;
         }
     
-        // Mostrar barra de carga
+        // Bloqueamos el botón y mostramos la barra de carga en segundo plano.
+        // El modal NO se cierra hasta que la carga termine (con éxito o error),
+        // así nunca se entra a la app con datos a medias.
+        if (loginBtn) { loginBtn.disabled = true; loginBtn.textContent = "Cargando..."; }
         if (loadingContainer) loadingContainer.style.display = 'block';
-        if (loadingFill) loadingFill.style.width = '30%';
-        if (statusText) statusText.innerText = "Conectando con la nube...";
+        if (loadingFill) loadingFill.style.width = '15%';
+        if (statusText) { statusText.style.color = 'var(--accent)'; statusText.innerText = "Conectando con la nube..."; }
     
         userEmail = emailVal;
+        if (inputEmail) inputEmail.value = emailVal;
         localStorage.setItem("userEmail", userEmail);
     
         loadProfileInfo();
         loadUserExercises();
     
+        let syncOk = true;
         try {
-            if (loadingFill) loadingFill.style.width = '70%';
+            if (loadingFill) loadingFill.style.width = '45%';
+            if (statusText) statusText.innerText = "Descargando tu historial de entrenamientos...";
             await cargarDatosDesdeNube();
             if (loadingFill) loadingFill.style.width = '100%';
+            if (statusText) {
+                const total = rawCloudRows.length;
+                statusText.innerText = total > 0
+                    ? `✅ ${total} registros sincronizados.`
+                    : "✅ Conectado. Aún no tienes registros guardados.";
+            }
         } catch (error) {
+            syncOk = false;
             console.error("Error de sincronización:", error);
+            if (statusText) {
+                statusText.style.color = 'var(--danger)';
+                statusText.innerText = "⚠️ No se pudo cargar tu información de la nube. Revisa tu conexión e inténtalo de nuevo.";
+            }
         } finally {
-            // Garantizar que el modal siempre se cierre para que el botón no se quede "muerto"
+            if (loginBtn) { loginBtn.disabled = false; loginBtn.textContent = "Ingresar a la App"; }
+
+            // Si la sincronización falló, dejamos el modal abierto (con el error visible)
+            // para que el usuario pueda reintentar en vez de entrar con la app vacía.
+            if (!syncOk) {
+                if (loadingContainer) loadingContainer.style.display = 'none';
+                if (loadingFill) loadingFill.style.width = '0%';
+                return;
+            }
+
             setTimeout(() => {
                 const modal = document.getElementById('login-modal');
                 if (modal) modal.style.display = 'none';
@@ -727,7 +759,7 @@
                 const profileUser = document.getElementById('profile-current-user');
                 if (profileUser) profileUser.value = userEmail;
     
-                if (statusText) statusText.innerText = "";
+                if (statusText) { statusText.innerText = ""; statusText.style.color = 'var(--accent)'; }
                 if (loadingContainer) loadingContainer.style.display = 'none';
                 if (loadingFill) loadingFill.style.width = '0%';
             }, 500);
@@ -737,19 +769,28 @@
     async function cargarDatosDesdeNube() {
         if (!userEmail) return;
 
-        try {
-            const urlFinal = `${scriptUrl}?email=${encodeURIComponent(userEmail)}`;
-            const res = await fetch(urlFinal);
-            const data = await res.json();
+        const urlFinal = `${scriptUrl}?email=${encodeURIComponent(userEmail)}`;
+        const res = await fetch(urlFinal);
 
-            rawCloudRows = Array.isArray(data) ? data : [];
-            processCloudData(rawCloudRows);
-            
-            const hoyStr = new Date().toISOString().split('T')[0];
-            update3DBodyForDate(hoyStr);
-        } catch (error) {
-            console.error("Error al sincronizar datos con la nube:", error);
+        if (!res.ok) {
+            throw new Error(`La nube respondió con estado ${res.status}`);
         }
+
+        let data;
+        try {
+            data = await res.json();
+        } catch (parseError) {
+            // Si Apps Script devuelve HTML (p.ej. página de error/login) en vez de JSON,
+            // res.json() falla aquí. Antes esto se tragaba en silencio y el usuario
+            // se quedaba sin datos sin ninguna explicación.
+            throw new Error("La respuesta de la nube no es JSON válido. Verifica el despliegue del Apps Script.");
+        }
+
+        rawCloudRows = Array.isArray(data) ? data : [];
+        processCloudData(rawCloudRows);
+
+        const hoyStr = new Date().toISOString().split('T')[0];
+        selectDayForView(hoyStr);
     }
 
     function switchUserAccount() {
@@ -792,6 +833,20 @@
         bodyMeshes.trapecios = new THREE.Mesh(new THREE.BoxGeometry(1.1, 0.3, 0.45), matInactivo.clone());
         bodyMeshes.trapecios.position.set(0, 1.65, -0.05);
         bodyGroup.add(bodyMeshes.trapecios);
+
+        bodyMeshes.hombroFrente = new THREE.Group();
+        const homFrGeo = new THREE.SphereGeometry(0.18, 12, 12);
+        const homFrIzq = new THREE.Mesh(homFrGeo, matInactivo.clone()); homFrIzq.position.set(-0.85, 1.58, 0.12);
+        const homFrDer = new THREE.Mesh(homFrGeo, matInactivo.clone()); homFrDer.position.set(0.85, 1.58, 0.12);
+        bodyMeshes.hombroFrente.add(homFrIzq, homFrDer);
+        bodyGroup.add(bodyMeshes.hombroFrente);
+
+        bodyMeshes.hombroTrasero = new THREE.Group();
+        const homTrGeo = new THREE.SphereGeometry(0.16, 12, 12);
+        const homTrIzq = new THREE.Mesh(homTrGeo, matInactivo.clone()); homTrIzq.position.set(-0.85, 1.55, -0.18);
+        const homTrDer = new THREE.Mesh(homTrGeo, matInactivo.clone()); homTrDer.position.set(0.85, 1.55, -0.18);
+        bodyMeshes.hombroTrasero.add(homTrIzq, homTrDer);
+        bodyGroup.add(bodyMeshes.hombroTrasero);
     
         bodyMeshes.pecho = new THREE.Mesh(new THREE.BoxGeometry(1.1, 0.7, 0.35), matInactivo.clone());
         bodyMeshes.pecho.position.set(0, 1.2, 0.2);
@@ -836,6 +891,27 @@
         const aduDer = new THREE.Mesh(aduGeo, matInactivo.clone()); aduDer.position.set(0.3, -0.7, 0);
         bodyMeshes.aductor.add(aduIzq, aduDer);
         bodyGroup.add(bodyMeshes.aductor);
+
+        bodyMeshes.gluteos = new THREE.Group();
+        const gluGeo = new THREE.BoxGeometry(0.32, 0.35, 0.3);
+        const gluIzq = new THREE.Mesh(gluGeo, matInactivo.clone()); gluIzq.position.set(-0.3, -0.85, -0.2);
+        const gluDer = new THREE.Mesh(gluGeo, matInactivo.clone()); gluDer.position.set(0.3, -0.85, -0.2);
+        bodyMeshes.gluteos.add(gluIzq, gluDer);
+        bodyGroup.add(bodyMeshes.gluteos);
+
+        bodyMeshes.cuadriceps = new THREE.Group();
+        const cuadGeo = new THREE.BoxGeometry(0.34, 0.9, 0.3);
+        const cuadIzq = new THREE.Mesh(cuadGeo, matInactivo.clone()); cuadIzq.position.set(-0.4, -1.3, 0.12);
+        const cuadDer = new THREE.Mesh(cuadGeo, matInactivo.clone()); cuadDer.position.set(0.4, -1.3, 0.12);
+        bodyMeshes.cuadriceps.add(cuadIzq, cuadDer);
+        bodyGroup.add(bodyMeshes.cuadriceps);
+
+        bodyMeshes.isquiotibiales = new THREE.Group();
+        const isqGeo = new THREE.BoxGeometry(0.32, 0.9, 0.28);
+        const isqIzq = new THREE.Mesh(isqGeo, matInactivo.clone()); isqIzq.position.set(-0.4, -1.3, -0.15);
+        const isqDer = new THREE.Mesh(isqGeo, matInactivo.clone()); isqDer.position.set(0.4, -1.3, -0.15);
+        bodyMeshes.isquiotibiales.add(isqIzq, isqDer);
+        bodyGroup.add(bodyMeshes.isquiotibiales);
     
         bodyMeshes.pantorrillas = new THREE.Group();
         const pantGeo = new THREE.CylinderGeometry(0.16, 0.12, 1.0, 12);
@@ -855,6 +931,40 @@
         animate();
     }
     
+    // Mapa DIRECTO entre el "primary" (grupo muscular) de cada ejercicio en
+    // exercisesDatabase y las mallas 3D correspondientes. Antes se intentaba
+    // adivinar el grupo muscular buscando palabras como "pecho" o "espalda"
+    // dentro de campos (item.muscle / item.grupo) que las filas de la nube
+    // nunca traían, así que nunca coincidía con nada.
+    const primaryToBodyMeshKeys = {
+        chest: ['pecho'],
+        abs: ['abdomen'],
+        quads: ['cuadriceps'],
+        biceps: ['brazos'],
+        triceps: ['brazos'],
+        forearms: ['antebrazo'],
+        calves: ['pantorrillas'],
+        traps: ['trapecios'],
+        abductors: ['abductor'],
+        adductors: ['aductor'],
+        shoulders_front: ['hombroFrente'],
+        shoulders_rear: ['hombroTrasero'],
+        back_width: ['amplitudEspalda'],
+        back_density: ['densidadEspalda'],
+        glutes: ['gluteos'],
+        hamstrings: ['isquiotibiales']
+    };
+
+    function pintarMalla3D(key, color) {
+        const item = bodyMeshes[key];
+        if (!item) return;
+        if (item instanceof THREE.Group) {
+            item.children.forEach(mesh => mesh.material.color.setHex(color));
+        } else if (item.material) {
+            item.material.color.setHex(color);
+        }
+    }
+
     function update3DBodyForDate(dateStr) {
         const label = document.getElementById('current-workout-date');
         if (label) label.innerText = dateStr;
@@ -862,60 +972,26 @@
         const colorInactivo = 0x2a2a35;
         const colorEntrenado = 0xff5722; 
     
-        Object.keys(bodyMeshes).forEach(key => {
-            const item = bodyMeshes[key];
-            if (item instanceof THREE.Group) {
-                item.children.forEach(mesh => mesh.material.color.setHex(colorInactivo));
-            } else if (item && item.material) {
-                item.material.color.setHex(colorInactivo);
-            }
+        Object.keys(bodyMeshes).forEach(key => pintarMalla3D(key, colorInactivo));
+
+        // Usamos rawCloudRows (los datos reales ya sincronizados desde la nube),
+        // igual que el resto de la app, en vez de la variable "workoutData" que
+        // nunca se llenaba.
+        const entrenamientosDelDia = rawCloudRows.filter(r => {
+            if (r.recordType !== "Serie Individual") return false;
+            let d = (r.date && r.date.includes('T')) ? r.date.split('T')[0] : r.date;
+            return d === dateStr;
         });
-    
-        if (Array.isArray(workoutData)) {
-            const entrenamientosDelDia = workoutData.filter(item => {
-                let d = (item.date && item.date.includes('T')) ? item.date.split('T')[0] : item.date;
-                return d === dateStr;
-            });
-    
-            entrenamientosDelDia.forEach(item => {
-                const textoBusqueda = ((item.muscle || "") + " " + (item.exercise || "") + " " + (item.grupo || "")).toLowerCase();
-    
-                if (textoBusqueda.includes("pecho") || textoBusqueda.includes("chest")) {
-                    if (bodyMeshes.pecho) bodyMeshes.pecho.material.color.setHex(colorEntrenado);
-                }
-                if (textoBusqueda.includes("amplitud") || textoBusqueda.includes("dorsal") || textoBusqueda.includes("lat")) {
-                    if (bodyMeshes.amplitudEspalda) bodyMeshes.amplitudEspalda.material.color.setHex(colorEntrenado);
-                }
-                if (textoBusqueda.includes("densidad") || textoBusqueda.includes("espalda baja") || textoBusqueda.includes("remo")) {
-                    if (bodyMeshes.densidadEspalda) bodyMeshes.densidadEspalda.material.color.setHex(colorEntrenado);
-                }
-                else if (textoBusqueda.includes("espalda") || textoBusqueda.includes("back")) {
-                    if (bodyMeshes.amplitudEspalda) bodyMeshes.amplitudEspalda.material.color.setHex(colorEntrenado);
-                    if (bodyMeshes.densidadEspalda) bodyMeshes.densidadEspalda.material.color.setHex(colorEntrenado);
-                }
-                if (textoBusqueda.includes("trapecio") || textoBusqueda.includes("trap")) {
-                    if (bodyMeshes.trapecios) bodyMeshes.trapecios.material.color.setHex(colorEntrenado);
-                }
-                if (textoBusqueda.includes("antebrazo") || textoBusqueda.includes("forearm")) {
-                    if (bodyMeshes.antebrazo) bodyMeshes.antebrazo.children.forEach(m => m.material.color.setHex(colorEntrenado));
-                }
-                if (textoBusqueda.includes("brazo") || textoBusqueda.includes("bíceps") || textoBusqueda.includes("tríceps") || textoBusqueda.includes("arm")) {
-                    if (bodyMeshes.brazos) bodyMeshes.brazos.children.forEach(m => m.material.color.setHex(colorEntrenado));
-                }
-                if (textoBusqueda.includes("abdomen") || textoBusqueda.includes("core") || textoBusqueda.includes("abdominal")) {
-                    if (bodyMeshes.abdomen) bodyMeshes.abdomen.material.color.setHex(colorEntrenado);
-                }
-                if (textoBusqueda.includes("abductor")) {
-                    if (bodyMeshes.abductor) bodyMeshes.abductor.children.forEach(m => m.material.color.setHex(colorEntrenado));
-                }
-                if (textoBusqueda.includes("aductor")) {
-                    if (bodyMeshes.aductor) bodyMeshes.aductor.children.forEach(m => m.material.color.setHex(colorEntrenado));
-                }
-                if (textoBusqueda.includes("pantorrilla") || textoBusqueda.includes("gemelo") || textoBusqueda.includes("calf")) {
-                    if (bodyMeshes.pantorrillas) bodyMeshes.pantorrillas.children.forEach(m => m.material.color.setHex(colorEntrenado));
-                }
-            });
-        }
+
+        entrenamientosDelDia.forEach(row => {
+            const exObj = exercisesDatabase.find(e => e.name.toLowerCase() === (row.exercise || "").toLowerCase());
+            if (!exObj || !exObj.primary) return;
+
+            const meshKeys = primaryToBodyMeshKeys[exObj.primary];
+            if (!meshKeys) return;
+
+            meshKeys.forEach(key => pintarMalla3D(key, colorEntrenado));
+        });
     }
 
     // --- GESTIÓN DE PERFIL Y DATOS ---
@@ -1882,6 +1958,10 @@
 
         const dateLabel = document.getElementById('current-workout-date');
         if (dateLabel) dateLabel.textContent = dateStr;
+
+        // Mantiene sincronizado el modelo 3D con el día que se está viendo
+        // en el calendario (antes solo se actualizaba una vez, al cargar).
+        if (typeof update3DBodyForDate === 'function') update3DBodyForDate(dateStr);
 
         const dayRows = rawCloudRows.filter(r => {
             let d = (r.date && r.date.includes('T')) ? r.date.split('T')[0] : r.date;
