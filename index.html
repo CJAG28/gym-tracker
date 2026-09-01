@@ -613,6 +613,53 @@
 <script>
     const scriptUrl = "https://script.google.com/macros/s/AKfycbyJYgwYVzWg79zJhBuhdjPcdS0Rg6ewNx-GRhl3QpyF7s5I2QvheazF3EFUJpy9V1lS/exec";
 
+    // Variable global para guardar los entrenamientos que vienen de la nube
+    let workoutData = []; 
+    
+    // LA URL DE TU WEB APP DE GOOGLE APPS SCRIPT (la que te dio Google al desplegar)
+    const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbyJYgwYVzWg79zJhBuhdjPcdS0Rg6ewNx-GRhl3QpyF7s5I2QvheazF3EFUJpy9V1lS/exec"; 
+    
+    async function cargarDatosDesdeNube() {
+        // Obtenemos el correo del usuario (asegúrate de guardarlo en localStorage al iniciar sesión)
+        const currentUserEmail = localStorage.getItem("userEmail") || "tu_correo@example.com"; 
+    
+        if (!currentUserEmail) {
+            console.warn("No hay un correo de usuario definido.");
+            return;
+        }
+    
+        try {
+            // Hacemos la petición GET a tu Google Apps Script
+            const urlFinal = `${WEB_APP_URL}?email=${encodeURIComponent(currentUserEmail)}`;
+            const res = await fetch(urlFinal);
+            const data = await res.json();
+    
+            // Guardamos los datos en la variable global para que el modelo 3D los lea
+            workoutData = data;
+            console.log("Datos sincronizados desde Google Sheets:", workoutData);
+    
+            // Actualizamos el modelo 3D con el día actual
+            const hoyStr = new Date().toISOString().split('T')[0];
+            if (typeof update3DBodyForDate === 'function') {
+                update3DBodyForDate(hoyStr);
+            }
+    
+        } catch (error) {
+            console.error("Error al sincronizar datos con la nube:", error);
+        }
+    }
+    
+    // Este es el punto de arranque cuando abres la página en la PC o el teléfono
+    document.addEventListener("DOMContentLoaded", async () => {
+        // 1. Descargamos primero lo último de Google Sheets
+        await cargarDatosDesdeNube();
+    
+        // 2. Luego iniciamos el modelo 3D
+        if (typeof init3DBodyModel === 'function') {
+            init3DBodyModel();
+        }
+    });
+    
     let scene, camera, renderer, bodyMeshes = {};
     
     function init3DBodyModel() {
