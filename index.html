@@ -1442,32 +1442,44 @@
         const grid = document.getElementById('calendar-grid'); grid.innerHTML = '';
         const monthNames = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
         document.getElementById('calendar-month-title').textContent = `${monthNames[currentCalendarMonth]} ${currentCalendarYear}`;
-
+    
         ['D','L','M','X','J','V','S'].forEach(h => {
             const d = document.createElement('div'); d.className = 'calendar-day-header'; d.textContent = h; grid.appendChild(d);
         });
-
+    
         const firstDayIndex = new Date(currentCalendarYear, currentCalendarMonth, 1).getDay();
         const totalDays = new Date(currentCalendarYear, currentCalendarMonth + 1, 0).getDate();
-
+    
         for (let i = 0; i < firstDayIndex; i++) { grid.appendChild(document.createElement('div')); }
-
+    
+        const todayStr = new Date().toISOString().split('T')[0];
+    
         for (let i = 1; i <= totalDays; i++) {
             const d = document.createElement('div');
-            d.className = 'calendar-day'; d.id = `day-${currentCalendarYear}-${currentCalendarMonth}-${i}`; d.textContent = i;
             const monthStr = String(currentCalendarMonth + 1).padStart(2, '0');
             const dayStr = String(i).padStart(2, '0');
             const dateStr = `${currentCalendarYear}-${monthStr}-${dayStr}`;
-            d.onclick = () => openDayModal(dateStr);
+    
+            d.className = 'calendar-day'; 
+            d.id = `day-${currentCalendarYear}-${currentCalendarMonth}-${i}`; 
+            d.textContent = i;
+            
+            // Al hacer clic, selecciona el día en vivo
+            d.onclick = () => selectDayForView(dateStr, d);
+            d.ondblclick = () => openDayModal(dateStr); // Doble clic para editar en modal
+    
             grid.appendChild(d);
         }
-
+    
         rawCloudRows.forEach(r => {
             if (r.recordType === "Serie Individual") {
                 let rDate = (r.date && r.date.includes('T')) ? r.date.split('T')[0] : r.date;
                 markCalendarDate(rDate);
             }
         });
+    
+        // Seleccionar por defecto el día de hoy
+        selectDayForView(todayStr);
     }
 
     function markCalendarDate(dateStr) {
@@ -1602,7 +1614,103 @@
         resetMuscleData();
         updateBodyMap();
     }
+    function selectDayForView(dateStr, elementRef = null) {
+    // Resaltar día seleccionado visualmente en el calendario
+    document.querySelectorAll('.calendar-day').forEach(el => el.classList.remove('selected-day'));
+    if (elementRef) {
+        elementRef.classList.add('selected-day');
+    }
 
+    document.getElementById('selected-day-label').textContent = dateStr;
+
+    // Filtrar series del día elegido
+    const dayRows = rawCloudRows.filter(r => {
+        let d = (r.date && r.date.includes('T')) ? r.date.split('T')[0] : r.date;
+        return d === dateStr && r.recordType === "Serie Individual";
+    });
+
+    const summaryContainer = document.getElementById('day-workout-summary');
+    const dayMuscles = {};
+
+    // SI ES UN DÍA DE DESCANSO / SIN REGISTROS (Estado Vacío)
+    if (dayRows.length === 0) {
+        summaryContainer.innerHTML = `
+            <div class="empty-workout-state">
+                🌴 <strong>Día de descanso</strong><br>
+                <small>No hay registros de entrenamiento para esta fecha.</small>
+            </div>
+        `;
+        // Pintar el gráfico en tono neutro minimalista (#2a2a35)
+        updateBodyMap(dayMuscles);
+        return;
+    }
+
+    // SI HAY REGISTROS: Procesar volumen y ejercicios
+    const exerciseSummary = {};
+    dayRows.forEach(r => {
+        const weightKg = r.unit === 'lbs' ? parseFloat(r.weight) * 0.453592 : parseFloat(r.weight);
+        const reps = parseInt(r.reps);
+        const vol = weightKg * (r.isUnilateral === 'si' ? reps * 2 : reps);
+
+        const exObj = exercisesDatabase.find(e => e.name.toLowerCase() === (r.exercise || "").toLowerCase());
+        if (exObj) {
+            dayMuscles[exObj.primary] = (dayMuscles[exObj.primary] || 0) + vol;
+        }
+
+        if (!exerciseSummary[r.exercise]) {
+            exerciseSummary[r.exercise] = { sets: 0, maxWeight: 0, unit: r.unit, totalVol: 0 };
+        }
+        exerciseSummary[r.exercise].sets++;
+        exerciseSummary[r.exercise].totalVol += vol;
+        if (parseFloat(r.weight) > exerciseSummary[r.exercise].maxWeight) {
+            exerciseSummary[r.exercise].maxWeight = parseFloat(r.weight);
+            exerciseSummary[r.exercise].unit = r.unit;
+        }
+    });
+
+    // Renderizar tabla resumida
+    let html = '<table style="width:100%;"><thead><tr><th>Ejercicio</th><th>Series</th><th>Máx Peso</th><th>Volumen</th></tr></thead><tbody>';
+    Object.entries(exerciseSummary).forEach(([ex, data]) => {
+        html += `
+            <tr>
+                <td><strong>${ex}</strong></td>
+                <td>${data.sets} series</td>
+                <td>${data.maxWeight} ${data.unit}</td>
+                <td><strong style="color:var(--accent);">${Math.round(data.totalVol)} kg</strong></td>
+            </tr>
+        `;
+    });
+    html += '</tbody></table>';
+    summaryContainer.innerHTML = html;
+
+    // Actualizar mapa muscular con degradado en tonos cálidos
+    updateBodyMapWithWarmGradient(dayMuscles);
+}
+
+    // Función para degradados cálidos (Naranja a Rojo según volumen)
+    function updateBodyMapWithWarmGradient(specificData) {
+        const allMuscles = ['chest', 'abs', 'quads', 'biceps', 'forearms', 'calves', 'traps', 'abductors', 'adductors', 'shoulders_front', 'back_width', 'back_density', 'shoulders_rear', 'triceps', 'glutes', 'hamstrings'];
+    
+        allMuscles.forEach(m => { 
+            const el = document.getElementById(m); 
+            const elRear = document.getElementById(m + '_rear');
+            const currentVol = specificData[m] || 0;
+            const refVol = muscleMaxReference[m] || 3000;
+    
+            [el, elRear].forEach(element => {
+                if (!element) return;
+                if (currentVol === 0) {
+                    element.style.fill = '#2a2a35'; // Tono neutro / descanso
+                } else {
+                    const ratio = Math.min(currentVol / refVol, 1.0);
+                    // Degradado en tonos cálidos (Naranja -> Naranja Intenso -> Rojo Vivo)
+                    if (ratio <= 0.35) element.style.fill = '#ffb74d';      // Naranja claro
+                    else if (ratio <= 0.70) element.style.fill = '#ff7043'; // Naranja intenso
+                    else element.style.fill = '#ff1744';                   // Rojo de máxima intensidad
+                }
+            });
+        });
+    }
     function closeStoryModal() { document.getElementById('story-modal').style.display = 'none'; }
 </script>
 </body>
