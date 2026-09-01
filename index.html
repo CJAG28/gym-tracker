@@ -1,6 +1,8 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Gym Tracker Cloud Sync & Analytics PRO</title>
@@ -397,9 +399,13 @@
             <!-- 2. GRÁFICO DEL CUERPO INTERACTIVO POR DÍA -->
             <div class="card" style="text-align: center;">
                 <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
-                    <h2 style="border:none; margin:0;">🔥 Análisis Muscular del Día</h2>
+                    <h2 style="border:none; margin:0;">🔥 Modelo Corporal 3D Interactivo</h2>
                     <span id="selected-day-label" style="font-size:0.85rem; color:var(--accent); font-weight:bold;">Hoy</span>
                 </div>
+                <!-- Contenedor 3D -->
+                <div id="body-3d-container" style="width: 100%; height: 320px; cursor: grab; position: relative;"></div>
+                <small style="color: var(--text-muted);">💡 Haz clic y arrastra para rotar la figura en 3D.</small>
+            </div>
                 
                 <div class="body-maps-wrapper">
                     <div class="body-map-card">
@@ -603,6 +609,71 @@
 <script>
     const scriptUrl = "https://script.google.com/macros/s/AKfycbyJYgwYVzWg79zJhBuhdjPcdS0Rg6ewNx-GRhl3QpyF7s5I2QvheazF3EFUJpy9V1lS/exec";
 
+    let scene, camera, renderer, bodyModelMesh;
+
+    function init3DBodyModel() {
+        const container = document.getElementById('body-3d-container');
+            if (!container) return;
+    
+        scene = new THREE.Scene();
+        camera = new THREE.PerspectiveCamera(45, container.clientWidth / container.clientHeight, 0.1, 1000);
+        renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+        renderer.setSize(container.clientWidth, container.clientHeight);
+        container.appendChild(renderer.domElement);
+    
+        // Controles de órbita para rotar libremente con el mouse
+        const controls = new THREE.OrbitControls(camera, renderer.domElement);
+        controls.enableZoom = false; // Evitar zoom accidental para centrarse en la rotación
+    
+        // Luz ambiental y direccional para dar volumen 3D
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.7);
+        scene.add(ambientLight);
+        const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
+        dirLight.position.set(5, 10, 7);
+        scene.add(dirLight);
+    
+        // Creación de una figura estilizada unificada (Cápsulas/Geometrías combinadas para torso, piernas, aductores)
+        const bodyGroup = new THREE.Group();
+        
+        // Material base para los músculos
+        const material = new THREE.MeshStandardMaterial({ color: 0x2a2a35, roughness: 0.4 });
+    
+        // Ejemplo de extremidades / aductores integrados en la zona central de las piernas
+        const legGeometry = new THREE.CylinderGeometry(0.4, 0.3, 3, 16);
+        const leftLeg = new THREE.Mesh(legGeometry, material);
+        leftLeg.position.set(-0.6, -1, 0);
+        bodyGroup.add(leftLeg);
+    
+        const rightLeg = new THREE.Mesh(legGeometry, material);
+        rightLeg.position.set(0.6, -1, 0);
+        bodyGroup.add(rightLeg);
+    
+        // Torso central unificado
+        const torsoGeometry = new THREE.BoxGeometry(1.4, 2, 0.8);
+        const torso = new THREE.Mesh(torsoGeometry, material);
+        torso.position.set(0, 1, 0);
+        bodyGroup.add(torso);
+    
+        scene.add(bodyGroup);
+        bodyModelMesh = bodyGroup;
+    
+        camera.position.z = 7;
+    
+        // Bucle de renderizado fluido
+        function animate() {
+            requestAnimationFrame(animate);
+            controls.update();
+            renderer.render(scene, camera);
+        }
+        animate();
+    }
+    
+    // Llama a esta función al cargar la página junto con DOMContentLoaded
+    document.addEventListener("DOMContentLoaded", () => {
+        // ... tus otras funciones de inicio
+        init3DBodyModel();
+    });
+    
     const initialExercises = [
         { id: "press_banca", name: "Press de Banca Plano", primary: "chest" },
         { id: "press_inclinado", name: "Press Inclinado", primary: "chest" },
