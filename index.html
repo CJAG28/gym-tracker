@@ -214,7 +214,7 @@
     <div class="modal-card" style="max-width: 400px; text-align: center;">
         <h2 style="border:none;">🔑 Iniciar Sesión</h2>
         <div class="form-group">
-            <label>Correo Electrónico (GMail)</label>
+            <label>Correo Electrónico (Gmail)</label>
             <input type="email" id="login-email" placeholder="ejemplo@gmail.com" required>
         </div>
         <button onclick="loginAndSync()">Ingresar a la App</button>
@@ -615,6 +615,55 @@
 
     // Variable global para guardar los entrenamientos que vienen de la nube
     let workoutData = []; 
+    async function loginAndSync() {
+        const inputEmail = document.getElementById('login-email');
+        const emailVal = inputEmail ? inputEmail.value.trim() : "";
+        const statusText = document.getElementById('sync-status');
+
+        if (!emailVal || !emailVal.includes("@") || !emailVal.includes(".")) {
+            alert("Por favor, ingresa un correo electrónico válido.");
+            inputEmail.focus();
+            return;
+        }
+
+        if (statusText) statusText.innerText = "Sincronizando datos con la nube...";
+
+        localStorage.setItem("userEmail", emailVal);
+
+        if (typeof cargarDatosDesdeNube === 'function') {
+            await cargarDatosDesdeNube();
+        }
+
+        const modal = document.getElementById('login-modal');
+        if (modal) {
+            modal.style.display = 'none';
+        }
+
+        if (typeof init3DBodyModel === 'function') {
+            init3DBodyModel();
+        }
+    }
+
+    async function cargarDatosDesdeNube() {
+        const currentUserEmail = localStorage.getItem("userEmail"); 
+        if (!currentUserEmail) return;
+
+        try {
+            const urlFinal = `${WEB_APP_URL}?email=${encodeURIComponent(currentUserEmail)}`;
+            const res = await fetch(urlFinal);
+            const data = await res.json();
+
+            workoutData = Array.isArray(data) ? data : [];
+            
+            const hoyStr = new Date().toISOString().split('T')[0];
+            if (typeof update3DBodyForDate === 'function') {
+                update3DBodyForDate(hoyStr);
+            }
+        } catch (error) {
+            console.error("No se pudo conectar con la nube, usando modo local:", error);
+        }
+    }
+
     
     // LA URL DE TU WEB APP DE GOOGLE APPS SCRIPT (la que te dio Google al desplegar)
     const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbyJYgwYVzWg79zJhBuhdjPcdS0Rg6ewNx-GRhl3QpyF7s5I2QvheazF3EFUJpy9V1lS/exec"; 
