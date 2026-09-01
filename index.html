@@ -613,316 +613,10 @@
 <script>
     const scriptUrl = "https://script.google.com/macros/s/AKfycbyJYgwYVzWg79zJhBuhdjPcdS0Rg6ewNx-GRhl3QpyF7s5I2QvheazF3EFUJpy9V1lS/exec";
 
-    // Variable global para guardar los entrenamientos que vienen de la nube
+    // Variables globales
     let workoutData = []; 
-    async function loginAndSync() {
-        const inputEmail = document.getElementById('login-email');
-        const emailVal = inputEmail ? inputEmail.value.trim() : "";
-        const statusText = document.getElementById('sync-status');
-
-        if (!emailVal || !emailVal.includes("@") || !emailVal.includes(".")) {
-            alert("Por favor, ingresa un correo electrónico válido.");
-            inputEmail.focus();
-            return;
-        }
-
-        if (statusText) statusText.innerText = "Sincronizando datos con la nube...";
-
-        localStorage.setItem("userEmail", emailVal);
-
-        if (typeof cargarDatosDesdeNube === 'function') {
-            await cargarDatosDesdeNube();
-        }
-
-        const modal = document.getElementById('login-modal');
-        if (modal) {
-            modal.style.display = 'none';
-        }
-
-        if (typeof init3DBodyModel === 'function') {
-            init3DBodyModel();
-        }
-    }
-
-    async function cargarDatosDesdeNube() {
-        const currentUserEmail = localStorage.getItem("userEmail"); 
-        if (!currentUserEmail) return;
-
-        try {
-            const urlFinal = `${WEB_APP_URL}?email=${encodeURIComponent(currentUserEmail)}`;
-            const res = await fetch(urlFinal);
-            const data = await res.json();
-
-            workoutData = Array.isArray(data) ? data : [];
-            
-            const hoyStr = new Date().toISOString().split('T')[0];
-            if (typeof update3DBodyForDate === 'function') {
-                update3DBodyForDate(hoyStr);
-            }
-        } catch (error) {
-            console.error("No se pudo conectar con la nube, usando modo local:", error);
-        }
-    }
-
-    
-    // LA URL DE TU WEB APP DE GOOGLE APPS SCRIPT (la que te dio Google al desplegar)
-    const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbyJYgwYVzWg79zJhBuhdjPcdS0Rg6ewNx-GRhl3QpyF7s5I2QvheazF3EFUJpy9V1lS/exec"; 
-    
-    async function cargarDatosDesdeNube() {
-        // Obtenemos el correo del usuario (asegúrate de guardarlo en localStorage al iniciar sesión)
-        const currentUserEmail = localStorage.getItem("userEmail") || "tu_correo@example.com"; 
-    
-        if (!currentUserEmail) {
-            console.warn("No hay un correo de usuario definido.");
-            return;
-        }
-    
-        try {
-            // Hacemos la petición GET a tu Google Apps Script
-            const urlFinal = `${WEB_APP_URL}?email=${encodeURIComponent(currentUserEmail)}`;
-            const res = await fetch(urlFinal);
-            const data = await res.json();
-    
-            // Guardamos los datos en la variable global para que el modelo 3D los lea
-            workoutData = data;
-            console.log("Datos sincronizados desde Google Sheets:", workoutData);
-    
-            // Actualizamos el modelo 3D con el día actual
-            const hoyStr = new Date().toISOString().split('T')[0];
-            if (typeof update3DBodyForDate === 'function') {
-                update3DBodyForDate(hoyStr);
-            }
-    
-        } catch (error) {
-            console.error("Error al sincronizar datos con la nube:", error);
-        }
-    }
-    
-    // Este es el punto de arranque cuando abres la página en la PC o el teléfono
-    document.addEventListener("DOMContentLoaded", async () => {
-        // 1. Descargamos primero lo último de Google Sheets
-        await cargarDatosDesdeNube();
-    
-        // 2. Luego iniciamos el modelo 3D
-        if (typeof init3DBodyModel === 'function') {
-            init3DBodyModel();
-        }
-    });
-    
     let scene, camera, renderer, bodyMeshes = {};
-    
-    function init3DBodyModel() {
-        const container = document.getElementById('body-3d-container');
-        if (!container) return;
-    
-        scene = new THREE.Scene();
-        camera = new THREE.PerspectiveCamera(45, container.clientWidth / container.clientHeight, 0.1, 1000);
-        renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-        renderer.setSize(container.clientWidth, container.clientHeight);
-        container.appendChild(renderer.domElement);
-    
-        const controls = new THREE.OrbitControls(camera, renderer.domElement);
-        controls.enableZoom = false;
-    
-        // Iluminación
-        scene.add(new THREE.AmbientLight(0xffffff, 0.7));
-        const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
-        dirLight.position.set(5, 10, 7);
-        scene.add(dirLight);
-    
-        const bodyGroup = new THREE.Group();
-        const matInactivo = new THREE.MeshStandardMaterial({ color: 0x2a2a35, roughness: 0.5 });
-    
-        // --- CONSTRUCCIÓN DEL MANÍQUÍ ANATÓMICO DETALLADO ---
-        
-        // Cabeza
-        bodyMeshes.cabeza = new THREE.Mesh(new THREE.SphereGeometry(0.35, 16, 16), matInactivo.clone());
-        bodyMeshes.cabeza.position.set(0, 2.2, 0);
-        bodyGroup.add(bodyMeshes.cabeza);
-    
-        // Trapecios
-        bodyMeshes.trapecios = new THREE.Mesh(new THREE.BoxGeometry(1.1, 0.3, 0.45), matInactivo.clone());
-        bodyMeshes.trapecios.position.set(0, 1.65, -0.05);
-        bodyGroup.add(bodyMeshes.trapecios);
-    
-        // Pecho
-        bodyMeshes.pecho = new THREE.Mesh(new THREE.BoxGeometry(1.1, 0.7, 0.35), matInactivo.clone());
-        bodyMeshes.pecho.position.set(0, 1.2, 0.2);
-        bodyGroup.add(bodyMeshes.pecho);
-    
-        // Espalda: Amplitud (Dorsales) y Densidad (Espalda media/baja)
-        bodyMeshes.amplitudEspalda = new THREE.Mesh(new THREE.BoxGeometry(1.3, 0.7, 0.3), matInactivo.clone());
-        bodyMeshes.amplitudEspalda.position.set(0, 1.25, -0.2);
-        bodyGroup.add(bodyMeshes.amplitudEspalda);
-    
-        bodyMeshes.densidadEspalda = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.6, 0.3), matInactivo.clone());
-        bodyMeshes.densidadEspalda.position.set(0, 0.65, -0.2);
-        bodyGroup.add(bodyMeshes.densidadEspalda);
-    
-        // Abdomen / Core
-        bodyMeshes.abdomen = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.8, 0.35), matInactivo.clone());
-        bodyMeshes.abdomen.position.set(0, 0.4, 0.2);
-        bodyGroup.add(bodyMeshes.abdomen);
-    
-        // Brazos (Bíceps/Tríceps) y Antebrazos
-        bodyMeshes.brazos = new THREE.Group();
-        const brazoGeo = new THREE.CylinderGeometry(0.18, 0.15, 1.1, 12);
-        const bIzq = new THREE.Mesh(brazoGeo, matInactivo.clone()); bIzq.position.set(-0.8, 1.1, 0);
-        const bDer = new THREE.Mesh(brazoGeo, matInactivo.clone()); bDer.position.set(0.8, 1.1, 0);
-        bodyMeshes.brazos.add(bIzq, bDer);
-        bodyGroup.add(bodyMeshes.brazos);
-    
-        bodyMeshes.antebrazo = new THREE.Group();
-        const anteGeo = new THREE.CylinderGeometry(0.14, 0.11, 1.0, 12);
-        const antIzq = new THREE.Mesh(anteGeo, matInactivo.clone()); antIzq.position.set(-0.8, -0.1, 0);
-        const antDer = new THREE.Mesh(anteGeo, matInactivo.clone()); antDer.position.set(0.8, -0.1, 0);
-        bodyMeshes.antebrazo.add(antIzq, antDer);
-        bodyGroup.add(bodyMeshes.antebrazo);
-    
-        // Piernas: Abductores, Aductores, Cuádriceps y Pantorrillas
-        bodyMeshes.abductor = new THREE.Group(); // Parte externa del muslo
-        const abdGeo = new THREE.BoxGeometry(0.28, 0.7, 0.35);
-        const abdIzq = new THREE.Mesh(abdGeo, matInactivo.clone()); abdIzq.position.set(-0.6, -0.7, 0);
-        const abdDer = new THREE.Mesh(abdGeo, matInactivo.clone()); abdDer.position.set(0.6, -0.7, 0);
-        bodyMeshes.abductor.add(abdIzq, abdDer);
-        bodyGroup.add(bodyMeshes.abductor);
-    
-        bodyMeshes.aductor = new THREE.Group(); // Parte interna del muslo
-        const aduGeo = new THREE.BoxGeometry(0.25, 0.7, 0.35);
-        const aduIzq = new THREE.Mesh(aduGeo, matInactivo.clone()); aduIzq.position.set(-0.3, -0.7, 0);
-        const aduDer = new THREE.Mesh(aduGeo, matInactivo.clone()); aduDer.position.set(0.3, -0.7, 0);
-        bodyMeshes.aductor.add(aduIzq, aduDer);
-        bodyGroup.add(bodyMeshes.aductor);
-    
-        bodyMeshes.pantorrillas = new THREE.Group();
-        const pantGeo = new THREE.CylinderGeometry(0.16, 0.12, 1.0, 12);
-        const pantIzq = new THREE.Mesh(pantGeo, matInactivo.clone()); pantIzq.position.set(-0.45, -1.9, -0.05);
-        const pantDer = new THREE.Mesh(pantGeo, matInactivo.clone()); pantDer.position.set(0.45, -1.9, -0.05);
-        bodyMeshes.pantorrillas.add(pantIzq, pantDer);
-        bodyGroup.add(bodyMeshes.pantorrillas);
-    
-        scene.add(bodyGroup);
-        camera.position.z = 7;
-    
-        function animate() {
-            requestAnimationFrame(animate);
-            controls.update();
-            renderer.render(scene, camera);
-        }
-        animate();
-    }
-    
-    // --- FUNCIÓN DE ACTUALIZACIÓN Y PINTADO POR FECHA ---
-    function update3DBodyForDate(dateStr) {
-        const label = document.getElementById('current-workout-date');
-        if (label) label.innerText = dateStr;
-    
-        const colorInactivo = 0x2a2a35;
-        const colorEntrenado = 0xff5722; // Naranja intenso para resaltar lo entrenado
-    
-        // 1. Resetear todos los elementos a color inactivo
-        Object.keys(bodyMeshes).forEach(key => {
-            const item = bodyMeshes[key];
-            if (item instanceof THREE.Group) {
-                item.children.forEach(mesh => mesh.material.color.setHex(colorInactivo));
-            } else if (item && item.material) {
-                item.material.color.setHex(colorInactivo);
-            }
-        });
-    
-        // 2. Verificar datos y filtrar por fecha
-        if (typeof workoutData !== 'undefined' && Array.isArray(workoutData)) {
-            // Filtramos buscando coincidencias de fecha (asegúrate de que item.date tenga formato YYYY-MM-DD)
-            const entrenamientosDelDia = workoutData.filter(item => item.date === dateStr);
-    
-            entrenamientosDelDia.forEach(item => {
-                // Unimos campos comunes donde guardes el músculo o ejercicio para asegurar la lectura
-                const textoBusqueda = ((item.muscle || "") + " " + (item.exercise || "") + " " + (item.grupo || "")).toLowerCase();
-    
-                // Lógica de coincidencia para cada grupo muscular solicitado
-                if (textoBusqueda.includes("pecho") || textoBusqueda.includes("chest")) {
-                    bodyMeshes.pecho.material.color.setHex(colorEntrenado);
-                }
-                if (textoBusqueda.includes("amplitud") || textoBusqueda.includes("dorsal") || textoBusqueda.includes("lat")) {
-                    bodyMeshes.amplitudEspalda.material.color.setHex(colorEntrenado);
-                }
-                if (textoBusqueda.includes("densidad") || textoBusqueda.includes("espalda baja") || textoBusqueda.includes("remo")) {
-                    bodyMeshes.densidadEspalda.material.color.setHex(colorEntrenado);
-                }
-                else if (textoBusqueda.includes("espalda") || textoBusqueda.includes("back")) {
-                    // Si solo dice "espalda", pintamos ambas zonas dorsales
-                    bodyMeshes.amplitudEspalda.material.color.setHex(colorEntrenado);
-                    bodyMeshes.densidadEspalda.material.color.setHex(colorEntrenado);
-                }
-                if (textoBusqueda.includes("trapecio") || textoBusqueda.includes("trap")) {
-                    bodyMeshes.trapecios.material.color.setHex(colorEntrenado);
-                }
-                if (textoBusqueda.includes("antebrazo") || textoBusqueda.includes("forearm")) {
-                    bodyMeshes.antebrazo.children.forEach(m => m.material.color.setHex(colorEntrenado));
-                }
-                if (textoBusqueda.includes("brazo") || textoBusqueda.includes("bíceps") || textoBusqueda.includes("tríceps") || textoBusqueda.includes("arm")) {
-                    bodyMeshes.brazos.children.forEach(m => m.material.color.setHex(colorEntrenado));
-                }
-                if (textoBusqueda.includes("abdomen") || textoBusqueda.includes("core") || textoBusqueda.includes("abdominal")) {
-                    bodyMeshes.abdomen.material.color.setHex(colorEntrenado);
-                }
-                if (textoBusqueda.includes("abductor")) {
-                    bodyMeshes.abductor.children.forEach(m => m.material.color.setHex(colorEntrenado));
-                }
-                if (textoBusqueda.includes("aductor")) {
-                    bodyMeshes.aductor.children.forEach(m => m.material.color.setHex(colorEntrenado));
-                }
-                if (textoBusqueda.includes("pantorrilla") || textoBusqueda.includes("gemelo") || textoBusqueda.includes("calf")) {
-                    bodyMeshes.pantorrillas.children.forEach(m => m.material.color.setHex(colorEntrenado));
-                }
-            });
-        }
-    }
-    
-    // Inicialización
-    document.addEventListener("DOMContentLoaded", () => {
-        init3DBodyModel();
-        const hoyStr = new Date().toISOString().split('T')[0];
-        setTimeout(() => update3DBodyForDate(hoyStr), 400);
-    });
-        // 2. Buscar en tus datos globales de entrenamientos los ejercicios hechos en esa fecha
-        // (Asegúrate de que 'workoutData' o tu variable global contenga los registros cargados de Google Sheets)
-        if (typeof workoutData !== 'undefined' && Array.isArray(workoutData)) {
-            const entrenamientosDelDia = workoutData.filter(item => item.date === dateStr);
-    
-            entrenamientosDelDia.forEach(item => {
-                const musculo = item.muscle ? item.muscle.toLowerCase() : "";
-                
-                // Mapeo inteligente según cómo guardes el nombre del músculo en tu app
-                if (musculo.includes("pecho") || musculo.includes("chest")) {
-                    bodyParts.pecho.material.color.setHex(colorEntrenado);
-                }
-                if (musculo.includes("espalda") || musculo.includes("back")) {
-                    bodyParts.espalda.material.color.setHex(colorEntrenado);
-                }
-                if (musculo.includes("pierna") || musculo.includes("cuádriceps") || musculo.includes("aductores") || musculo.includes("leg")) {
-                    bodyParts.piernas.children.forEach(mesh => mesh.material.color.setHex(colorEntrenado));
-                }
-                if (musculo.includes("brazo") || musculo.includes("bíceps") || musculo.includes("tríceps") || musculo.includes("arm")) {
-                    bodyParts.brazos.children.forEach(mesh => mesh.material.color.setHex(colorEntrenado));
-                }
-                if (musculo.includes("abdomen") || musculo.includes("core")) {
-                    bodyParts.abdomen.material.color.setHex(colorEntrenado);
-                }
-            });
-        }
-    }
-    
-    // Inicialización automática al cargar la app
-    document.addEventListener("DOMContentLoaded", () => {
-        init3DBodyModel();
-        
-        // Ejemplo: cargar por defecto el día de hoy formateado como YYYY-MM-DD
-        const hoyStr = new Date().toISOString().split('T')[0];
-        setTimeout(() => update3DBodyForDate(hoyStr), 500); // Pequeño delay para asegurar carga de datos
-    });
-    
-    const initialExercises = [
+    let initialExercises = [
         { id: "press_banca", name: "Press de Banca Plano", primary: "chest" },
         { id: "press_inclinado", name: "Press Inclinado", primary: "chest" },
         { id: "dominadas", name: "Dominadas (Amplitud)", primary: "back_width" },
@@ -944,7 +638,7 @@
         { id: "aductor_maquina", name: "Aductores en Máquina", primary: "adductors" }
     ];
 
-    const muscleMaxReference = {
+    let muscleMaxReference = {
         chest: 4000, abs: 1500, quads: 6000, biceps: 2000, forearms: 1500, calves: 3000,
         traps: 2000, abductors: 2000, adductors: 2000,
         shoulders_front: 3000, back_width: 5000, back_density: 5000, shoulders_rear: 2000,
@@ -970,16 +664,238 @@
     let weightChartInstance = null, frequencyChartInstance = null, volumeChartInstance = null;
     let setCounter = 0;
 
-    document.addEventListener("DOMContentLoaded", () => {
+    // --- PUNTO DE ENTRADA PRINCIPAL ---
+    document.addEventListener("DOMContentLoaded", async () => {
         renderCalendar();
         addSetRow();
+        
         const savedEmail = localStorage.getItem('userEmail');
         if (savedEmail) {
             document.getElementById('login-email').value = savedEmail;
-            loginAndSync();
+            await loginAndSync();
         }
+
+        init3DBodyModel();
+        const hoyStr = new Date().toISOString().split('T')[0];
+        setTimeout(() => update3DBodyForDate(hoyStr), 400);
     });
 
+    // --- SINCRONIZACIÓN Y NUBE ---
+    async function loginAndSync() {
+        const inputEmail = document.getElementById('login-email');
+        const emailVal = inputEmail ? inputEmail.value.trim() : "";
+        const statusText = document.getElementById('sync-status');
+
+        if (!emailVal || !emailVal.includes("@") || !emailVal.includes(".")) {
+            alert("Por favor, ingresa un correo electrónico válido.");
+            if (inputEmail) inputEmail.focus();
+            return;
+        }
+
+        if (statusText) statusText.innerText = "Sincronizando datos con la nube...";
+
+        userEmail = emailVal;
+        localStorage.setItem("userEmail", userEmail);
+
+        loadProfileInfo();
+        loadUserExercises();
+
+        await cargarDatosDesdeNube();
+
+        const modal = document.getElementById('login-modal');
+        if (modal) modal.style.display = 'none';
+        
+        const profileUser = document.getElementById('profile-current-user');
+        if (profileUser) profileUser.value = userEmail;
+
+        if (statusText) statusText.innerText = "";
+    }
+
+    async function cargarDatosDesdeNube() {
+        if (!userEmail) return;
+
+        try {
+            const urlFinal = `${scriptUrl}?email=${encodeURIComponent(userEmail)}`;
+            const res = await fetch(urlFinal);
+            const data = await res.json();
+
+            rawCloudRows = Array.isArray(data) ? data : [];
+            processCloudData(rawCloudRows);
+            
+            const hoyStr = new Date().toISOString().split('T')[0];
+            update3DBodyForDate(hoyStr);
+        } catch (error) {
+            console.error("Error al sincronizar datos con la nube:", error);
+        }
+    }
+
+    function switchUserAccount() {
+        document.getElementById('login-email').value = "";
+        document.getElementById('sync-status').textContent = "";
+        document.getElementById('login-modal').style.display = 'flex';
+    }
+
+    function logout() { 
+        localStorage.removeItem('userEmail'); 
+        location.reload(); 
+    }
+
+    // --- MODELO 3D (THREE.JS) ---
+    function init3DBodyModel() {
+        const container = document.getElementById('body-3d-container');
+        if (!container) return;
+    
+        scene = new THREE.Scene();
+        camera = new THREE.PerspectiveCamera(45, container.clientWidth / container.clientHeight, 0.1, 1000);
+        renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+        renderer.setSize(container.clientWidth, container.clientHeight);
+        container.appendChild(renderer.domElement);
+    
+        const controls = new THREE.OrbitControls(camera, renderer.domElement);
+        controls.enableZoom = false;
+    
+        scene.add(new THREE.AmbientLight(0xffffff, 0.7));
+        const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
+        dirLight.position.set(5, 10, 7);
+        scene.add(dirLight);
+    
+        const bodyGroup = new THREE.Group();
+        const matInactivo = new THREE.MeshStandardMaterial({ color: 0x2a2a35, roughness: 0.5 });
+    
+        bodyMeshes.cabeza = new THREE.Mesh(new THREE.SphereGeometry(0.35, 16, 16), matInactivo.clone());
+        bodyMeshes.cabeza.position.set(0, 2.2, 0);
+        bodyGroup.add(bodyMeshes.cabeza);
+    
+        bodyMeshes.trapecios = new THREE.Mesh(new THREE.BoxGeometry(1.1, 0.3, 0.45), matInactivo.clone());
+        bodyMeshes.trapecios.position.set(0, 1.65, -0.05);
+        bodyGroup.add(bodyMeshes.trapecios);
+    
+        bodyMeshes.pecho = new THREE.Mesh(new THREE.BoxGeometry(1.1, 0.7, 0.35), matInactivo.clone());
+        bodyMeshes.pecho.position.set(0, 1.2, 0.2);
+        bodyGroup.add(bodyMeshes.pecho);
+    
+        bodyMeshes.amplitudEspalda = new THREE.Mesh(new THREE.BoxGeometry(1.3, 0.7, 0.3), matInactivo.clone());
+        bodyMeshes.amplitudEspalda.position.set(0, 1.25, -0.2);
+        bodyGroup.add(bodyMeshes.amplitudEspalda);
+    
+        bodyMeshes.densidadEspalda = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.6, 0.3), matInactivo.clone());
+        bodyMeshes.densidadEspalda.position.set(0, 0.65, -0.2);
+        bodyGroup.add(bodyMeshes.densidadEspalda);
+    
+        bodyMeshes.abdomen = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.8, 0.35), matInactivo.clone());
+        bodyMeshes.abdomen.position.set(0, 0.4, 0.2);
+        bodyGroup.add(bodyMeshes.abdomen);
+    
+        bodyMeshes.brazos = new THREE.Group();
+        const brazoGeo = new THREE.CylinderGeometry(0.18, 0.15, 1.1, 12);
+        const bIzq = new THREE.Mesh(brazoGeo, matInactivo.clone()); bIzq.position.set(-0.8, 1.1, 0);
+        const bDer = new THREE.Mesh(brazoGeo, matInactivo.clone()); bDer.position.set(0.8, 1.1, 0);
+        bodyMeshes.brazos.add(bIzq, bDer);
+        bodyGroup.add(bodyMeshes.brazos);
+    
+        bodyMeshes.antebrazo = new THREE.Group();
+        const anteGeo = new THREE.CylinderGeometry(0.14, 0.11, 1.0, 12);
+        const antIzq = new THREE.Mesh(anteGeo, matInactivo.clone()); antIzq.position.set(-0.8, -0.1, 0);
+        const antDer = new THREE.Mesh(anteGeo, matInactivo.clone()); antDer.position.set(0.8, -0.1, 0);
+        bodyMeshes.antebrazo.add(antIzq, antDer);
+        bodyGroup.add(bodyMeshes.antebrazo);
+    
+        bodyMeshes.abductor = new THREE.Group();
+        const abdGeo = new THREE.BoxGeometry(0.28, 0.7, 0.35);
+        const abdIzq = new THREE.Mesh(abdGeo, matInactivo.clone()); abdIzq.position.set(-0.6, -0.7, 0);
+        const abdDer = new THREE.Mesh(abdGeo, matInactivo.clone()); abdDer.position.set(0.6, -0.7, 0);
+        bodyMeshes.abductor.add(abdIzq, abdDer);
+        bodyGroup.add(bodyMeshes.abductor);
+    
+        bodyMeshes.aductor = new THREE.Group();
+        const aduGeo = new THREE.BoxGeometry(0.25, 0.7, 0.35);
+        const aduIzq = new THREE.Mesh(aduGeo, matInactivo.clone()); aduIzq.position.set(-0.3, -0.7, 0);
+        const aduDer = new THREE.Mesh(aduGeo, matInactivo.clone()); aduDer.position.set(0.3, -0.7, 0);
+        bodyMeshes.aductor.add(aduIzq, aduDer);
+        bodyGroup.add(bodyMeshes.aductor);
+    
+        bodyMeshes.pantorrillas = new THREE.Group();
+        const pantGeo = new THREE.CylinderGeometry(0.16, 0.12, 1.0, 12);
+        const pantIzq = new THREE.Mesh(pantGeo, matInactivo.clone()); pantIzq.position.set(-0.45, -1.9, -0.05);
+        const pantDer = new THREE.Mesh(pantGeo, matInactivo.clone()); pantDer.position.set(0.45, -1.9, -0.05);
+        bodyMeshes.pantorrillas.add(pantIzq, pantDer);
+        bodyGroup.add(bodyMeshes.pantorrillas);
+    
+        scene.add(bodyGroup);
+        camera.position.z = 7;
+    
+        function animate() {
+            requestAnimationFrame(animate);
+            controls.update();
+            renderer.render(scene, camera);
+        }
+        animate();
+    }
+    
+    function update3DBodyForDate(dateStr) {
+        const label = document.getElementById('current-workout-date');
+        if (label) label.innerText = dateStr;
+    
+        const colorInactivo = 0x2a2a35;
+        const colorEntrenado = 0xff5722; 
+    
+        Object.keys(bodyMeshes).forEach(key => {
+            const item = bodyMeshes[key];
+            if (item instanceof THREE.Group) {
+                item.children.forEach(mesh => mesh.material.color.setHex(colorInactivo));
+            } else if (item && item.material) {
+                item.material.color.setHex(colorInactivo);
+            }
+        });
+    
+        if (Array.isArray(workoutData)) {
+            const entrenamientosDelDia = workoutData.filter(item => {
+                let d = (item.date && item.date.includes('T')) ? item.date.split('T')[0] : item.date;
+                return d === dateStr;
+            });
+    
+            entrenamientosDelDia.forEach(item => {
+                const textoBusqueda = ((item.muscle || "") + " " + (item.exercise || "") + " " + (item.grupo || "")).toLowerCase();
+    
+                if (textoBusqueda.includes("pecho") || textoBusqueda.includes("chest")) {
+                    if (bodyMeshes.pecho) bodyMeshes.pecho.material.color.setHex(colorEntrenado);
+                }
+                if (textoBusqueda.includes("amplitud") || textoBusqueda.includes("dorsal") || textoBusqueda.includes("lat")) {
+                    if (bodyMeshes.amplitudEspalda) bodyMeshes.amplitudEspalda.material.color.setHex(colorEntrenado);
+                }
+                if (textoBusqueda.includes("densidad") || textoBusqueda.includes("espalda baja") || textoBusqueda.includes("remo")) {
+                    if (bodyMeshes.densidadEspalda) bodyMeshes.densidadEspalda.material.color.setHex(colorEntrenado);
+                }
+                else if (textoBusqueda.includes("espalda") || textoBusqueda.includes("back")) {
+                    if (bodyMeshes.amplitudEspalda) bodyMeshes.amplitudEspalda.material.color.setHex(colorEntrenado);
+                    if (bodyMeshes.densidadEspalda) bodyMeshes.densidadEspalda.material.color.setHex(colorEntrenado);
+                }
+                if (textoBusqueda.includes("trapecio") || textoBusqueda.includes("trap")) {
+                    if (bodyMeshes.trapecios) bodyMeshes.trapecios.material.color.setHex(colorEntrenado);
+                }
+                if (textoBusqueda.includes("antebrazo") || textoBusqueda.includes("forearm")) {
+                    if (bodyMeshes.antebrazo) bodyMeshes.antebrazo.children.forEach(m => m.material.color.setHex(colorEntrenado));
+                }
+                if (textoBusqueda.includes("brazo") || textoBusqueda.includes("bíceps") || textoBusqueda.includes("tríceps") || textoBusqueda.includes("arm")) {
+                    if (bodyMeshes.brazos) bodyMeshes.brazos.children.forEach(m => m.material.color.setHex(colorEntrenado));
+                }
+                if (textoBusqueda.includes("abdomen") || textoBusqueda.includes("core") || textoBusqueda.includes("abdominal")) {
+                    if (bodyMeshes.abdomen) bodyMeshes.abdomen.material.color.setHex(colorEntrenado);
+                }
+                if (textoBusqueda.includes("abductor")) {
+                    if (bodyMeshes.abductor) bodyMeshes.abductor.children.forEach(m => m.material.color.setHex(colorEntrenado));
+                }
+                if (textoBusqueda.includes("aductor")) {
+                    if (bodyMeshes.aductor) bodyMeshes.aductor.children.forEach(m => m.material.color.setHex(colorEntrenado));
+                }
+                if (textoBusqueda.includes("pantorrilla") || textoBusqueda.includes("gemelo") || textoBusqueda.includes("calf")) {
+                    if (bodyMeshes.pantorrillas) bodyMeshes.pantorrillas.children.forEach(m => m.material.color.setHex(colorEntrenado));
+                }
+            });
+        }
+    }
+
+    // --- GESTIÓN DE PERFIL Y DATOS ---
     function resetMuscleData() {
         muscleData = {
             chest: 0, abs: 0, quads: 0, biceps: 0, forearms: 0, calves: 0,
@@ -993,7 +909,8 @@
         document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
         document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
         event.target.classList.add('active');
-        document.getElementById(`tab-${tabName}`).classList.add('active');
+        const targetTab = document.getElementById(`tab-${tabName}`);
+        if (targetTab) targetTab.classList.add('active');
         if (tabName === 'perfil') renderChart();
         if (tabName === 'stats') renderAdvancedStats();
     }
@@ -1001,30 +918,37 @@
     function loadProfileInfo() {
         const storedName = localStorage.getItem(`userName_${userEmail.toLowerCase()}`);
         userName = storedName || userEmail.split('@')[0];
-        document.getElementById('profile-display-name').value = userName;
-        document.getElementById('user-display').textContent = userName;
+        const dispName = document.getElementById('profile-display-name');
+        const userDisp = document.getElementById('user-display');
+        if (dispName) dispName.value = userName;
+        if (userDisp) userDisp.textContent = userName;
 
         const storedAvatar = localStorage.getItem(`userAvatar_${userEmail.toLowerCase()}`);
+        const headAvatar = document.getElementById('header-avatar');
+        const profAvatar = document.getElementById('profile-avatar');
         if (storedAvatar) {
-            document.getElementById('header-avatar').src = storedAvatar;
-            document.getElementById('profile-avatar').src = storedAvatar;
+            if (headAvatar) headAvatar.src = storedAvatar;
+            if (profAvatar) profAvatar.src = storedAvatar;
         } else {
             const defaultSrc = "https://via.placeholder.com/90?text=👤";
-            document.getElementById('header-avatar').src = defaultSrc;
-            document.getElementById('profile-avatar').src = defaultSrc;
+            if (headAvatar) headAvatar.src = defaultSrc;
+            if (profAvatar) profAvatar.src = defaultSrc;
         }
     }
 
-    document.getElementById('user-details-form').addEventListener('submit', (e) => {
-        e.preventDefault();
-        const newName = document.getElementById('profile-display-name').value.trim();
-        if (newName) {
-            userName = newName;
-            localStorage.setItem(`userName_${userEmail.toLowerCase()}`, userName);
-            document.getElementById('user-display').textContent = userName;
-            alert("Nombre de perfil actualizado.");
-        }
-    });
+    const userDetailsForm = document.getElementById('user-details-form');
+    if (userDetailsForm) {
+        userDetailsForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            const newName = document.getElementById('profile-display-name').value.trim();
+            if (newName) {
+                userName = newName;
+                localStorage.setItem(`userName_${userEmail.toLowerCase()}`, userName);
+                document.getElementById('user-display').textContent = userName;
+                alert("Nombre de perfil actualizado.");
+            }
+        });
+    }
 
     function handleAvatarUpload(event) {
         const file = event.target.files[0];
@@ -1063,28 +987,36 @@
         const container = document.getElementById("exercise-list-container");
         const checkboxContainer = document.getElementById("routine-checkboxes-container");
         
-        select.innerHTML = ""; container.innerHTML = ""; checkboxContainer.innerHTML = "";
+        if (select) select.innerHTML = ""; 
+        if (container) container.innerHTML = ""; 
+        if (checkboxContainer) checkboxContainer.innerHTML = "";
 
         exercisesDatabase.forEach(ex => {
-            const opt = document.createElement("option");
-            opt.value = ex.id; opt.textContent = `${ex.name} (${ex.primary.toUpperCase()})`;
-            select.appendChild(opt);
+            if (select) {
+                const opt = document.createElement("option");
+                opt.value = ex.id; opt.textContent = `${ex.name} (${ex.primary.toUpperCase()})`;
+                select.appendChild(opt);
+            }
 
-            const item = document.createElement("div");
-            item.className = "exercise-item";
-            item.innerHTML = `
-                <div><strong>${ex.name}</strong><br><small style="color:var(--text-muted);">Grupo: ${ex.primary.toUpperCase()}</small></div>
-                <div class="exercise-item-actions">
-                    <button class="btn-warning" onclick="editExercise('${ex.id}')">✏️</button>
-                    <button class="btn-danger" onclick="deleteExercise('${ex.id}')">🗑️</button>
-                </div>
-            `;
-            container.appendChild(item);
+            if (container) {
+                const item = document.createElement("div");
+                item.className = "exercise-item";
+                item.innerHTML = `
+                    <div><strong>${ex.name}</strong><br><small style="color:var(--text-muted);">Grupo: ${ex.primary.toUpperCase()}</small></div>
+                    <div class="exercise-item-actions">
+                        <button class="btn-warning" onclick="editExercise('${ex.id}')">✏️</button>
+                        <button class="btn-danger" onclick="deleteExercise('${ex.id}')">🗑️</button>
+                    </div>
+                `;
+                container.appendChild(item);
+            }
 
-            const cbItem = document.createElement("div");
-            cbItem.className = "checkbox-item";
-            cbItem.innerHTML = `<input type="checkbox" value="${ex.id}" id="cb-ex-${ex.id}"><label for="cb-ex-${ex.id}">${ex.name}</label>`;
-            checkboxContainer.appendChild(cbItem);
+            if (checkboxContainer) {
+                const cbItem = document.createElement("div");
+                cbItem.className = "checkbox-item";
+                cbItem.innerHTML = `<input type="checkbox" value="${ex.id}" id="cb-ex-${ex.id}"><label for="cb-ex-${ex.id}">${ex.name}</label>`;
+                checkboxContainer.appendChild(cbItem);
+            }
         });
 
         localStorage.setItem(`customExercises_${userEmail.toLowerCase()}`, JSON.stringify(exercisesDatabase));
@@ -1095,44 +1027,51 @@
         const routineSelector = document.getElementById("routine-selector");
         const routinesContainer = document.getElementById("routines-list-container");
         
-        routineSelector.innerHTML = '<option value="">-- Todos los Ejercicios / Libre --</option>';
-        routinesContainer.innerHTML = "";
+        if (routineSelector) routineSelector.innerHTML = '<option value="">-- Todos los Ejercicios / Libre --</option>';
+        if (routinesContainer) routinesContainer.innerHTML = "";
 
         routinesDatabase.forEach((rt, idx) => {
-            const opt = document.createElement("option");
-            opt.value = rt.name; opt.textContent = rt.name;
-            routineSelector.appendChild(opt);
+            if (routineSelector) {
+                const opt = document.createElement("option");
+                opt.value = rt.name; opt.textContent = rt.name;
+                routineSelector.appendChild(opt);
+            }
 
-            const item = document.createElement("div");
-            item.className = "routine-item";
-            const exNames = rt.exerciseIds.map(id => {
-                const found = exercisesDatabase.find(e => e.id === id);
-                return found ? found.name : "";
-            }).filter(n => n !== "").join(", ");
+            if (routinesContainer) {
+                const item = document.createElement("div");
+                item.className = "routine-item";
+                const exNames = rt.exerciseIds.map(id => {
+                    const found = exercisesDatabase.find(e => e.id === id);
+                    return found ? found.name : "";
+                }).filter(n => n !== "").join(", ");
 
-            item.innerHTML = `
-                <div><strong>${rt.name}</strong><br><small style="color:var(--text-muted);">${exNames}</small></div>
-                <div class="exercise-item-actions">
-                    <button class="btn-danger" onclick="deleteRoutine(${idx})">🗑️</button>
-                </div>
-            `;
-            routinesContainer.appendChild(item);
+                item.innerHTML = `
+                    <div><strong>${rt.name}</strong><br><small style="color:var(--text-muted);">${exNames}</small></div>
+                    <div class="exercise-item-actions">
+                        <button class="btn-danger" onclick="deleteRoutine(${idx})">🗑️</button>
+                    </div>
+                `;
+                routinesContainer.appendChild(item);
+            }
         });
 
         localStorage.setItem(`customRoutines_${userEmail.toLowerCase()}`, JSON.stringify(routinesDatabase));
     }
 
-    document.getElementById('routine-manage-form').addEventListener('submit', (e) => {
-        e.preventDefault();
-        const name = document.getElementById('routine-name-input').value.trim();
-        const checkedExs = Array.from(document.querySelectorAll('#routine-checkboxes-container input[type="checkbox"]:checked')).map(cb => cb.value);
+    const routineManageForm = document.getElementById('routine-manage-form');
+    if (routineManageForm) {
+        routineManageForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            const name = document.getElementById('routine-name-input').value.trim();
+            const checkedExs = Array.from(document.querySelectorAll('#routine-checkboxes-container input[type="checkbox"]:checked')).map(cb => cb.value);
 
-        if (checkedExs.length === 0) return alert("Selecciona al menos un ejercicio para la rutina.");
+            if (checkedExs.length === 0) return alert("Selecciona al menos un ejercicio para la rutina.");
 
-        routinesDatabase.push({ name: name, exerciseIds: checkedExs });
-        document.getElementById('routine-manage-form').reset();
-        renderRoutines();
-    });
+            routinesDatabase.push({ name: name, exerciseIds: checkedExs });
+            routineManageForm.reset();
+            renderRoutines();
+        });
+    }
 
     function deleteRoutine(index) {
         if (confirm("¿Eliminar esta rutina de entrenamiento?")) {
@@ -1144,6 +1083,7 @@
     function filterExercisesByRoutine() {
         const selectedRoutineName = document.getElementById("routine-selector").value;
         const select = document.getElementById("exercise-select");
+        if (!select) return;
         select.innerHTML = "";
 
         let exercisesToDisplay = exercisesDatabase;
@@ -1162,20 +1102,24 @@
         updateExercisePrBadge();
     }
 
-    document.getElementById('exercise-manage-form').addEventListener('submit', (e) => {
-        e.preventDefault();
-        const id = document.getElementById('manage-ex-id').value;
-        const name = document.getElementById('manage-ex-name').value.trim();
-        const primary = document.getElementById('manage-ex-primary').value;
+    const exerciseManageForm = document.getElementById('exercise-manage-form');
+    if (exerciseManageForm) {
+        exerciseManageForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            const id = document.getElementById('manage-ex-id').value;
+            const name = document.getElementById('manage-ex-name').value.trim();
+            const primary = document.getElementById('manage-ex-primary').value;
 
-        if (id) {
-            const index = exercisesDatabase.findIndex(e => e.id === id);
-            if (index !== -1) { exercisesDatabase[index].name = name; exercisesDatabase[index].primary = primary; }
-        } else {
-            exercisesDatabase.push({ id: 'ex_' + Date.now(), name: name, primary: primary });
-        }
-        resetExerciseForm(); renderExercises();
-    });
+            if (id) {
+                const index = exercisesDatabase.findIndex(e => e.id === id);
+                if (index !== -1) { exercisesDatabase[index].name = name; exercisesDatabase[index].primary = primary; }
+            } else {
+                exercisesDatabase.push({ id: 'ex_' + Date.now(), name: name, primary: primary });
+            }
+            resetExerciseForm(); 
+            renderExercises();
+        });
+    }
 
     function editExercise(id) {
         const ex = exercisesDatabase.find(e => e.id === id);
@@ -1201,14 +1145,14 @@
         }
     }
 
-    // Alerta sonora para temporizador de descanso
+    // --- TEMPORIZADORES Y PROCESAMIENTO ---
     function playBeepSound() {
         try {
             const ctx = new (window.AudioContext || window.webkitAudioContext)();
             const osc = ctx.createOscillator();
             const gain = ctx.createGain();
             osc.type = 'sine';
-            osc.frequency.setValueAtTime(587.33, ctx.currentTime); // D5 note
+            osc.frequency.setValueAtTime(587.33, ctx.currentTime);
             gain.gain.setValueAtTime(0.1, ctx.currentTime);
             osc.connect(gain);
             gain.connect(ctx.destination);
@@ -1227,9 +1171,7 @@
                 currentRestSeconds = Math.floor((new Date() - restStartTime) / 1000);
                 const mins = String(Math.floor(currentRestSeconds / 60)).padStart(2, '0');
                 const secs = String(currentRestSeconds % 60).padStart(2, '0');
-                display.textContent = `${mins}:${secs}`;
-                
-                // Si llega a 90s sugeridos por defecto por ejemplo, o al tocar detener
+                if (display) display.textContent = `${mins}:${secs}`;
             }, 1000);
         } else {
             isRestTimerActive = false; clearInterval(restTimerInterval);
@@ -1237,46 +1179,20 @@
             playBeepSound();
             const lastRestInput = document.querySelector('.set-row:last-child .set-rest');
             if (lastRestInput) lastRestInput.value = currentRestSeconds;
-            display.textContent = "00:00"; currentRestSeconds = 0;
+            if (display) display.textContent = "00:00"; 
+            currentRestSeconds = 0;
         }
     }
-
-    function loginAndSync() {
-        userEmail = document.getElementById('login-email').value.trim();
-        const status = document.getElementById('sync-status');
-        if (!userEmail) return alert("Ingresa tu correo.");
-        status.textContent = "Cargando datos de Google Sheets...";
-        localStorage.setItem('userEmail', userEmail);
-        loadProfileInfo();
-        loadUserExercises();
-
-        fetch(`${scriptUrl}?email=${encodeURIComponent(userEmail)}`)
-            .then(res => res.json())
-            .then(data => {
-                rawCloudRows = data.filter(r => (r.userEmail || "").toLowerCase() === userEmail.toLowerCase());
-                document.getElementById('login-modal').style.display = 'none';
-                document.getElementById('profile-current-user').value = userEmail;
-                processCloudData(rawCloudRows);
-                status.textContent = "";
-            })
-            .catch(err => { 
-                status.textContent = "Error al conectar."; 
-                console.error(err);
-            });
-    }
-
-    function switchUserAccount() {
-        document.getElementById('login-email').value = "";
-        document.getElementById('sync-status').textContent = "";
-        document.getElementById('login-modal').style.display = 'flex';
-    }
-
-    function logout() { localStorage.removeItem('userEmail'); location.reload(); }
 
     function processCloudData(rows) {
         prRecords = {}; weightHistory = [];
         resetMuscleData();
-        document.getElementById('history-table').querySelector('tbody').innerHTML = "";
+        
+        const historyTable = document.getElementById('history-table');
+        if (historyTable && historyTable.querySelector('tbody')) {
+            historyTable.querySelector('tbody').innerHTML = "";
+        }
+        
         renderCalendar();
 
         const exerciseGroups = {};
@@ -1296,7 +1212,6 @@
                 const reps = parseInt(r.reps);
 
                 if (exObj) {
-                    // Cálculo de 1RM con fórmula de Epley: weight * (1 + reps/30)
                     const estimated1RM = weightInKg * (1 + (reps / 30));
                     if (!prRecords[exObj.id] || weightInKg > prRecords[exObj.id].weightInKg) {
                         prRecords[exObj.id] = { 
@@ -1323,32 +1238,34 @@
             }
         });
 
-        // Calcular Racha de Entrenos (Streak)
         calculateStreak(trainedDatesSet);
 
-        Object.values(exerciseGroups).slice(-10).forEach(g => {
-            const rowHTML = document.createElement('tr');
-            let noteHtml = g.note ? `<br><small style="color:var(--warning);">📝 ${g.note}</small>` : '';
-            rowHTML.innerHTML = `<td>${g.date}</td><td><strong>${g.exercise}</strong>${noteHtml}</td><td>${g.sets.join('<br>')}</td><td>${Math.round(g.totalVol)} kg</td>`;
-            document.getElementById('history-table').querySelector('tbody').appendChild(rowHTML);
-        });
+        if (historyTable && historyTable.querySelector('tbody')) {
+            const tbody = historyTable.querySelector('tbody');
+            Object.values(exerciseGroups).slice(-10).forEach(g => {
+                const rowHTML = document.createElement('tr');
+                let noteHtml = g.note ? `<br><small style="color:var(--warning);">📝 ${g.note}</small>` : '';
+                rowHTML.innerHTML = `<td>${g.date}</td><td><strong>${g.exercise}</strong>${noteHtml}</td><td>${g.sets.join('<br>')}</td><td>${Math.round(g.totalVol)} kg</td>`;
+                tbody.appendChild(rowHTML);
+            });
+        }
 
         updateExercisePrBadge(); 
-        updateBodyMap(); 
         initChart();
     }
 
     function calculateStreak(datesSet) {
+        const streakDisplay = document.getElementById('streak-display');
+        if (!streakDisplay) return;
+
         if (datesSet.size === 0) {
-            document.getElementById('streak-display').textContent = "🔥 Racha: 0 días";
+            streakDisplay.textContent = "🔥 Racha: 0 días";
             return;
         }
         const sortedDates = Array.from(datesSet).sort((a,b) => new Date(b) - new Date(a));
         let streak = 0;
         let today = new Date().toISOString().split('T')[0];
-        let checkDate = new Date();
 
-        // Verificar si entrenó hoy o ayer para mantener la racha viva
         let latestDate = sortedDates[0];
         let diffTime = Math.abs(new Date(today) - new Date(latestDate));
         let diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
@@ -1367,7 +1284,7 @@
                 }
             }
         }
-        document.getElementById('streak-display').textContent = `🔥 Racha: ${streak} días consecutivos`;
+        streakDisplay.textContent = `🔥 Racha: ${streak} días consecutivos`;
     }
 
     function openDayModal(dateStr) {
@@ -1497,47 +1414,54 @@
             }
         });
 
-        const freqCtx = document.getElementById('frequencyChart').getContext('2d');
-        if (frequencyChartInstance) frequencyChartInstance.destroy();
-        frequencyChartInstance = new Chart(freqCtx, {
-            type: 'bar',
-            data: {
-                labels: Object.keys(muscleFreq).map(m => m.toUpperCase().replace('_', ' ')),
-                datasets: [{ label: 'Días Entrenados', data: Object.values(muscleFreq).map(set => set.size), backgroundColor: '#00e676' }]
-            },
-            options: { responsive: true }
-        });
-
-        const volCtx = document.getElementById('volumeChart').getContext('2d');
-        if (volumeChartInstance) volumeChartInstance.destroy();
-        volumeChartInstance = new Chart(volCtx, {
-            type: 'line',
-            data: {
-                labels: Object.keys(volumePerDate),
-                datasets: [{ label: 'Volumen (kg)', data: Object.values(volumePerDate), borderColor: '#ffb74d', backgroundColor: 'rgba(255, 183, 77, 0.2)', fill: true }]
-            },
-            options: { responsive: true }
-        });
-
-        const summaryContainer = document.getElementById('stats-summary-list');
-        summaryContainer.innerHTML = "";
-        if (Object.keys(exercisesInPeriod).length === 0) {
-            summaryContainer.innerHTML = "<p style='color:var(--text-muted);'>No hay datos en este período.</p>";
-            return;
+        const freqCtx = document.getElementById('frequencyChart');
+        if (freqCtx) {
+            if (frequencyChartInstance) frequencyChartInstance.destroy();
+            frequencyChartInstance = new Chart(freqCtx.getContext('2d'), {
+                type: 'bar',
+                data: {
+                    labels: Object.keys(muscleFreq).map(m => m.toUpperCase().replace('_', ' ')),
+                    datasets: [{ label: 'Días Entrenados', data: Object.values(muscleFreq).map(set => set.size), backgroundColor: '#00e676' }]
+                },
+                options: { responsive: true }
+            });
         }
 
-        let summaryHTML = "<ul>";
-        Object.entries(exercisesInPeriod).forEach(([exName, info]) => {
-            let noteStr = info.note ? `<br><small style="color:var(--warning);">Nota: ${info.note}</small>` : '';
-            summaryHTML += `<li style="margin-bottom:8px;"><strong>${exName}</strong>: Máx ${info.maxWeight} ${info.unit} | <em>1RM Estimado</em>: ~${info.est1RM} kg${noteStr}</li>`;
-        });
-        summaryHTML += "</ul>";
-        summaryContainer.innerHTML = summaryHTML;
+        const volCtx = document.getElementById('volumeChart');
+        if (volCtx) {
+            if (volumeChartInstance) volumeChartInstance.destroy();
+            volumeChartInstance = new Chart(volCtx.getContext('2d'), {
+                type: 'line',
+                data: {
+                    labels: Object.keys(volumePerDate),
+                    datasets: [{ label: 'Volumen (kg)', data: Object.values(volumePerDate), borderColor: '#ffb74d', backgroundColor: 'rgba(255, 183, 77, 0.2)', fill: true }]
+                },
+                options: { responsive: true }
+            });
+        }
+
+        const summaryContainer = document.getElementById('stats-summary-list');
+        if (summaryContainer) {
+            summaryContainer.innerHTML = "";
+            if (Object.keys(exercisesInPeriod).length === 0) {
+                summaryContainer.innerHTML = "<p style='color:var(--text-muted);'>No hay datos en este período.</p>";
+                return;
+            }
+
+            let summaryHTML = "<ul>";
+            Object.entries(exercisesInPeriod).forEach(([exName, info]) => {
+                let noteStr = info.note ? `<br><small style="color:var(--warning);">Nota: ${info.note}</small>` : '';
+                summaryHTML += `<li style="margin-bottom:8px;"><strong>${exName}</strong>: Máx ${info.maxWeight} ${info.unit} | <em>1RM Estimado</em>: ~${info.est1RM} kg${noteStr}</li>`;
+            });
+            summaryHTML += "</ul>";
+            summaryContainer.innerHTML = summaryHTML;
+        }
     }
 
     function addSetRow() {
         setCounter++;
         const container = document.getElementById('sets-container');
+        if (!container) return;
         const row = document.createElement('div');
         row.className = 'set-row'; row.id = `set-row-${setCounter}`;
         row.innerHTML = `
@@ -1554,11 +1478,13 @@
             <div class="subset-container" id="subset-container-${setCounter}"></div>
             <button type="button" class="btn-sub" onclick="addSubsetRow('${setCounter}')">➕ Dropset / Subserie</button>
         `;
-        container.appendChild(row); updateSetLabels();
+        container.appendChild(row); 
+        updateSetLabels();
     }
 
     function addSubsetRow(setId) {
         const container = document.getElementById(`subset-container-${setId}`);
+        if (!container) return;
         const subIndex = container.children.length + 1;
         const subRow = document.createElement('div');
         subRow.className = 'subset-row';
@@ -1573,7 +1499,7 @@
 
     function removeSetRow(id) {
         const container = document.getElementById('sets-container');
-        if (container.children.length <= 1) return;
+        if (!container || container.children.length <= 1) return;
         const row = document.getElementById(`set-row-${id}`);
         if (row) row.remove();
         updateSetLabels();
@@ -1581,109 +1507,119 @@
 
     function updateSetLabels() {
         const container = document.getElementById('sets-container');
+        if (!container) return;
         Array.from(container.children).forEach((row, idx) => {
             const label = row.querySelector('.set-label');
             if (label) label.textContent = `Serie #${idx + 1}`;
         });
     }
 
-    document.getElementById('workout-form').addEventListener('submit', async (e) => {
-        e.preventDefault();
-        const btnSubmit = document.getElementById('btn-submit-workout');
-        const selectedId = document.getElementById('exercise-select').value;
-        const exerciseObj = exercisesDatabase.find(e => e.id === selectedId);
-        const isUnilateral = document.getElementById('is-unilateral').value;
-        const sessionNote = document.getElementById('exercise-session-note').value.trim();
-        const setRows = document.querySelectorAll('.set-row');
+    const workoutForm = document.getElementById('workout-form');
+    if (workoutForm) {
+        workoutForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const btnSubmit = document.getElementById('btn-submit-workout');
+            const selectedId = document.getElementById('exercise-select').value;
+            const exerciseObj = exercisesDatabase.find(e => e.id === selectedId);
+            const isUnilateral = document.getElementById('is-unilateral').value;
+            const sessionNote = document.getElementById('exercise-session-note').value.trim();
+            const setRows = document.querySelectorAll('.set-row');
 
-        let validItemsToSend = [];
-        let validSetIndex = 0;
-        let isNewPRDetected = false;
-        let prDetailsMsg = "";
+            let validItemsToSend = [];
+            let validSetIndex = 0;
+            let isNewPRDetected = false;
+            let prDetailsMsg = "";
 
-        setRows.forEach((row) => {
-            const weightVal = row.querySelector('.set-weight').value;
-            const repsVal = row.querySelector('.set-reps').value;
+            setRows.forEach((row) => {
+                const weightVal = row.querySelector('.set-weight').value;
+                const repsVal = row.querySelector('.set-reps').value;
 
-            if (weightVal !== '' && repsVal !== '') {
-                const weight = parseFloat(weightVal);
-                const reps = parseInt(repsVal);
-                const weightKg = row.querySelector('.set-unit').value === 'lbs' ? weight * 0.453592 : weight;
+                if (weightVal !== '' && repsVal !== '') {
+                    const weight = parseFloat(weightVal);
+                    const reps = parseInt(repsVal);
+                    const weightKg = row.querySelector('.set-unit').value === 'lbs' ? weight * 0.453592 : weight;
 
-                // Validación de PR
-                if (!prRecords[selectedId] || weightKg > prRecords[selectedId].weightInKg) {
-                    isNewPRDetected = true;
-                    prDetailsMsg = `${exerciseObj.name}: ${weight} ${row.querySelector('.set-unit').value} × ${reps} reps`;
+                    if (!prRecords[selectedId] || weightKg > prRecords[selectedId].weightInKg) {
+                        isNewPRDetected = true;
+                        prDetailsMsg = `${exerciseObj ? exerciseObj.name : 'Ejercicio'}: ${weight} ${row.querySelector('.set-unit').value} × ${reps} reps`;
+                    }
+
+                    if (!isNaN(weight) && !isNaN(reps)) {
+                        validSetIndex++;
+                        validItemsToSend.push({
+                            action: "CREATE",
+                            recordType: "Serie Individual",
+                            routineName: document.getElementById('routine-selector').value || "Libre",
+                            exercise: exerciseObj ? exerciseObj.name : "",
+                            setNum: validSetIndex,
+                            weight: weight,
+                            unit: row.querySelector('.set-unit').value,
+                            reps: reps,
+                            rpe: row.querySelector('.set-rpe').value || '-',
+                            rir: row.querySelector('.set-rir').value || '-',
+                            restSeconds: row.querySelector('.set-rest').value || '-',
+                            isUnilateral: isUnilateral,
+                            isSubset: "no",
+                            note: sessionNote
+                        });
+                    }
                 }
+            });
 
-                if (!isNaN(weight) && !isNaN(reps)) {
-                    validSetIndex++;
-                    validItemsToSend.push({
-                        action: "CREATE",
-                        recordType: "Serie Individual",
-                        routineName: document.getElementById('routine-selector').value || "Libre",
-                        exercise: exerciseObj.name,
-                        setNum: validSetIndex,
-                        weight: weight,
-                        unit: row.querySelector('.set-unit').value,
-                        reps: reps,
-                        rpe: row.querySelector('.set-rpe').value || '-',
-                        rir: row.querySelector('.set-rir').value || '-',
-                        restSeconds: row.querySelector('.set-rest').value || '-',
-                        isUnilateral: isUnilateral,
-                        isSubset: "no",
-                        note: sessionNote
-                    });
-                }
+            if (validItemsToSend.length === 0) {
+                alert("Por favor rellena al menos una serie con peso y repeticiones.");
+                return;
+            }
+
+            if (btnSubmit) {
+                btnSubmit.disabled = true;
+                btnSubmit.textContent = "Guardando series...";
+            }
+
+            for (const itemData of validItemsToSend) {
+                await sendToSheetsAsync(itemData);
+            }
+
+            if (btnSubmit) {
+                btnSubmit.disabled = false;
+                btnSubmit.textContent = "Guardar Ejercicio y Series";
+            }
+
+            const currentRoutine = document.getElementById('routine-selector').value;
+            workoutForm.reset();
+            document.getElementById('routine-selector').value = currentRoutine;
+            filterExercisesByRoutine();
+
+            document.getElementById('sets-container').innerHTML = "";
+            setCounter = 0; 
+            addSetRow();
+
+            if (isNewPRDetected) {
+                document.getElementById('pr-modal-text').textContent = prDetailsMsg;
+                document.getElementById('pr-modal').style.display = 'flex';
+            } else {
+                alert("Series guardadas correctamente.");
+            }
+            setTimeout(loginAndSync, 1000);
+        });
+    }
+
+    const profileForm = document.getElementById('profile-form');
+    if (profileForm) {
+        profileForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            const rawWeight = parseFloat(document.getElementById('user-weight-input').value);
+            const unit = document.getElementById('user-weight-unit').value;
+            
+            if (rawWeight) {
+                const weightKg = unit === 'lbs' ? (rawWeight * 0.453592).toFixed(1) : rawWeight;
+                sendToSheetsAsync({ action: "CREATE", recordType: "Registro de Peso Corporal", userWeight: weightKg });
+                profileForm.reset();
+                alert(`Peso guardado (${weightKg} kg).`); 
+                setTimeout(loginAndSync, 1500);
             }
         });
-
-        if (validItemsToSend.length === 0) {
-            alert("Por favor rellena al menos una serie con peso y repeticiones.");
-            return;
-        }
-
-        btnSubmit.disabled = true;
-        btnSubmit.textContent = "Guardando series...";
-
-        for (const itemData of validItemsToSend) {
-            await sendToSheetsAsync(itemData);
-        }
-
-        btnSubmit.disabled = false;
-        btnSubmit.textContent = "Guardar Ejercicio y Series";
-
-        const currentRoutine = document.getElementById('routine-selector').value;
-        document.getElementById('workout-form').reset();
-        document.getElementById('routine-selector').value = currentRoutine;
-        filterExercisesByRoutine();
-
-        document.getElementById('sets-container').innerHTML = "";
-        setCounter = 0; 
-        addSetRow();
-
-        if (isNewPRDetected) {
-            document.getElementById('pr-modal-text').textContent = prDetailsMsg;
-            document.getElementById('pr-modal').style.display = 'flex';
-        } else {
-            alert("Series guardadas correctamente.");
-        }
-        setTimeout(loginAndSync, 1000);
-    });
-
-    document.getElementById('profile-form').addEventListener('submit', (e) => {
-        e.preventDefault();
-        const rawWeight = parseFloat(document.getElementById('user-weight-input').value);
-        const unit = document.getElementById('user-weight-unit').value;
-        
-        if (rawWeight) {
-            const weightKg = unit === 'lbs' ? (rawWeight * 0.453592).toFixed(1) : rawWeight;
-            sendToSheetsAsync({ action: "CREATE", recordType: "Registro de Peso Corporal", userWeight: weightKg });
-            document.getElementById('profile-form').reset();
-            alert(`Peso guardado (${weightKg} kg).`); 
-            setTimeout(loginAndSync, 1500);
-        }
-    });
+    }
 
     function sendToSheetsAsync(payload) {
         if (!scriptUrl) return Promise.resolve();
@@ -1700,6 +1636,8 @@
         const badge = document.getElementById('pr-info-badge');
         const overloadEl = document.getElementById('overload-suggestion');
         
+        if (!badge || !overloadEl) return;
+
         if (selectedId && prRecords[selectedId]) {
             const pr = prRecords[selectedId];
             badge.textContent = `🏆 Máx: ${pr.weight} ${pr.unit} (${pr.reps} reps) | 1RM: ~${pr.estimated1RM}kg`;
@@ -1711,7 +1649,9 @@
     }
 
     function initChart() {
-        const ctx = document.getElementById('weightChart').getContext('2d');
+        const weightCanvas = document.getElementById('weightChart');
+        if (!weightCanvas) return;
+        const ctx = weightCanvas.getContext('2d');
         if (weightChartInstance) weightChartInstance.destroy();
         weightChartInstance = new Chart(ctx, {
             type: 'line',
@@ -1725,31 +1665,6 @@
 
     function renderChart() { if (weightChartInstance) weightChartInstance.update(); }
 
-    function updateBodyMap(sessionSpecificData = null) {
-        const allMuscles = ['chest', 'abs', 'quads', 'biceps', 'forearms', 'calves', 'traps', 'abductors', 'adductors', 'shoulders_front', 'back_width', 'back_density', 'shoulders_rear', 'triceps', 'glutes', 'hamstrings'];
-
-        allMuscles.forEach(m => { 
-            const el = document.getElementById(m); 
-            const elRear = document.getElementById(m + '_rear');
-            const targetSource = sessionSpecificData ? sessionSpecificData : muscleData;
-            const currentVol = targetSource[m] || 0;
-            const refVol = muscleMaxReference[m] || 3000;
-
-            [el, elRear].forEach(element => {
-                if (!element) return;
-                if (currentVol === 0) {
-                    element.style.fill = '#2a2a35';
-                } else {
-                    const ratio = Math.min(currentVol / refVol, 1.0);
-                    if (ratio <= 0.3) element.style.fill = '#1b5e20';
-                    else if (ratio <= 0.6) element.style.fill = '#00e676';
-                    else if (ratio <= 0.85) element.style.fill = '#ffb74d';
-                    else element.style.fill = '#ff5252';
-                }
-            });
-        });
-    }
-
     function changeMonth(direction) {
         currentCalendarMonth += direction;
         if (currentCalendarMonth > 11) { currentCalendarMonth = 0; currentCalendarYear++; }
@@ -1758,9 +1673,12 @@
     }
 
     function renderCalendar() {
-        const grid = document.getElementById('calendar-grid'); grid.innerHTML = '';
+        const grid = document.getElementById('calendar-grid'); 
+        if (!grid) return;
+        grid.innerHTML = '';
         const monthNames = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
-        document.getElementById('calendar-month-title').textContent = `${monthNames[currentCalendarMonth]} ${currentCalendarYear}`;
+        const monthTitle = document.getElementById('calendar-month-title');
+        if (monthTitle) monthTitle.textContent = `${monthNames[currentCalendarMonth]} ${currentCalendarYear}`;
     
         ['D','L','M','X','J','V','S'].forEach(h => {
             const d = document.createElement('div'); d.className = 'calendar-day-header'; d.textContent = h; grid.appendChild(d);
@@ -1783,9 +1701,8 @@
             d.id = `day-${currentCalendarYear}-${currentCalendarMonth}-${i}`; 
             d.textContent = i;
             
-            // Al hacer clic, selecciona el día en vivo
             d.onclick = () => selectDayForView(dateStr, d);
-            d.ondblclick = () => openDayModal(dateStr); // Doble clic para editar en modal
+            d.ondblclick = () => openDayModal(dateStr);
     
             grid.appendChild(d);
         }
@@ -1797,7 +1714,6 @@
             }
         });
     
-        // Seleccionar por defecto el día de hoy
         selectDayForView(todayStr);
     }
 
@@ -1826,7 +1742,8 @@
                 const hrs = String(Math.floor(diffSecs / 3600)).padStart(2, '0');
                 const mins = String(Math.floor((diffSecs % 3600) / 60)).padStart(2, '0');
                 const secs = String(diffSecs % 60).padStart(2, '0');
-                document.getElementById('session-timer').textContent = `${hrs}:${mins}:${secs}`;
+                const timerEl = document.getElementById('session-timer');
+                if (timerEl) timerEl.textContent = `${hrs}:${mins}:${secs}`;
             }, 1000);
         } else {
             isWorkoutActive = false; clearInterval(workoutTimerInterval);
@@ -1910,103 +1827,99 @@
         });
 
         const listContainer = document.getElementById('story-exercises-list');
-        listContainer.innerHTML = "";
-        const entries = Object.entries(exerciseGroups);
-        if (entries.length === 0) {
-            listContainer.innerHTML = "<p style='color:var(--text-muted); text-align:center; font-size:0.8rem;'>No se registraron series en esta sesión.</p>";
-        } else {
-            entries.forEach(([exName, info]) => {
-                const item = document.createElement('div');
-                item.style.cssText = "margin-bottom:6px; border-bottom:1px solid var(--border-color); padding-bottom:4px;";
-                item.innerHTML = `
-                    <div style="display: flex; justify-content: space-between; font-size:0.85rem;">
-                        <strong style="color:#fff;">${exName}</strong>
-                        <span style="color:var(--accent); font-weight:bold;">${Math.round(info.totalVol)} kg</span>
-                    </div>
-                    <small style="color:var(--text-muted);">Máx: ${info.maxWeight} ${info.unit} • ${info.setsCount} series</small>
-                `;
-                listContainer.appendChild(item);
-            });
+        if (listContainer) {
+            listContainer.innerHTML = "";
+            const entries = Object.entries(exerciseGroups);
+            if (entries.length === 0) {
+                listContainer.innerHTML = "<p style='color:var(--text-muted); text-align:center; font-size:0.8rem;'>No se registraron series en esta sesión.</p>";
+            } else {
+                entries.forEach(([exName, info]) => {
+                    const item = document.createElement('div');
+                    item.style.cssText = "margin-bottom:6px; border-bottom:1px solid var(--border-color); padding-bottom:4px;";
+                    item.innerHTML = `
+                        <div style="display: flex; justify-content: space-between; font-size:0.85rem;">
+                            <strong style="color:#fff;">${exName}</strong>
+                            <span style="color:var(--accent); font-weight:bold;">${Math.round(info.totalVol)} kg</span>
+                        </div>
+                        <small style="color:var(--text-muted);">Máx: ${info.maxWeight} ${info.unit} • ${info.setsCount} series</small>
+                    `;
+                    listContainer.appendChild(item);
+                });
+            }
         }
 
         document.getElementById('story-modal').style.display = 'flex';
-        resetMuscleData();
-        updateBodyMap();
     }
+
     function selectDayForView(dateStr, elementRef = null) {
-    // Resaltar día seleccionado visualmente en el calendario
-    document.querySelectorAll('.calendar-day').forEach(el => el.classList.remove('selected-day'));
-    if (elementRef) {
-        elementRef.classList.add('selected-day');
+        document.querySelectorAll('.calendar-day').forEach(el => el.classList.remove('selected-day'));
+        if (elementRef) {
+            elementRef.classList.add('selected-day');
+        }
+
+        const dateLabel = document.getElementById('current-workout-date');
+        if (dateLabel) dateLabel.textContent = dateStr;
+
+        const dayRows = rawCloudRows.filter(r => {
+            let d = (r.date && r.date.includes('T')) ? r.date.split('T')[0] : r.date;
+            return d === dateStr && r.recordType === "Serie Individual";
+        });
+
+        const summaryContainer = document.getElementById('day-workout-summary');
+        if (!summaryContainer) return;
+
+        const dayMuscles = {};
+
+        if (dayRows.length === 0) {
+            summaryContainer.innerHTML = `
+                <div class="empty-workout-state">
+                    🌴 <strong>Día de descanso</strong><br>
+                    <small>No hay registros de entrenamiento para esta fecha.</small>
+                </div>
+            `;
+            updateBodyMapWithWarmGradient(dayMuscles);
+            return;
+        }
+
+        const exerciseSummary = {};
+        dayRows.forEach(r => {
+            const weightKg = r.unit === 'lbs' ? parseFloat(r.weight) * 0.453592 : parseFloat(r.weight);
+            const reps = parseInt(r.reps);
+            const vol = weightKg * (r.isUnilateral === 'si' ? reps * 2 : reps);
+
+            const exObj = exercisesDatabase.find(e => e.name.toLowerCase() === (r.exercise || "").toLowerCase());
+            if (exObj) {
+                dayMuscles[exObj.primary] = (dayMuscles[exObj.primary] || 0) + vol;
+            }
+
+            if (!exerciseSummary[r.exercise]) {
+                exerciseSummary[r.exercise] = { sets: 0, maxWeight: 0, unit: r.unit, totalVol: 0 };
+            }
+            exerciseSummary[r.exercise].sets++;
+            exerciseSummary[r.exercise].totalVol += vol;
+            if (parseFloat(r.weight) > exerciseSummary[r.exercise].maxWeight) {
+                exerciseSummary[r.exercise].maxWeight = parseFloat(r.weight);
+                exerciseSummary[r.exercise].unit = r.unit;
+            }
+        });
+
+        let html = '<table style="width:100%;"><thead><tr><th>Ejercicio</th><th>Series</th><th>Máx Peso</th><th>Volumen</th></tr></thead><tbody>';
+        Object.entries(exerciseSummary).forEach(([ex, data]) => {
+            html += `
+                <tr>
+                    <td><strong>${ex}</strong></td>
+                    <td>${data.sets} series</td>
+                    <td>${data.maxWeight} ${data.unit}</td>
+                    <td><strong style="color:var(--accent);">${Math.round(data.totalVol)} kg</strong></td>
+                </tr>
+            `;
+        });
+        html += '</tbody></table>';
+        summaryContainer.innerHTML = html;
+
+        updateBodyMapWithWarmGradient(dayMuscles);
     }
 
-    document.getElementById('selected-day-label').textContent = dateStr;
-
-    // Filtrar series del día elegido
-    const dayRows = rawCloudRows.filter(r => {
-        let d = (r.date && r.date.includes('T')) ? r.date.split('T')[0] : r.date;
-        return d === dateStr && r.recordType === "Serie Individual";
-    });
-
-    const summaryContainer = document.getElementById('day-workout-summary');
-    const dayMuscles = {};
-
-    // SI ES UN DÍA DE DESCANSO / SIN REGISTROS (Estado Vacío)
-    if (dayRows.length === 0) {
-        summaryContainer.innerHTML = `
-            <div class="empty-workout-state">
-                🌴 <strong>Día de descanso</strong><br>
-                <small>No hay registros de entrenamiento para esta fecha.</small>
-            </div>
-        `;
-        // Pintar el gráfico en tono neutro minimalista (#2a2a35)
-        updateBodyMap(dayMuscles);
-        return;
-    }
-
-    // SI HAY REGISTROS: Procesar volumen y ejercicios
-    const exerciseSummary = {};
-    dayRows.forEach(r => {
-        const weightKg = r.unit === 'lbs' ? parseFloat(r.weight) * 0.453592 : parseFloat(r.weight);
-        const reps = parseInt(r.reps);
-        const vol = weightKg * (r.isUnilateral === 'si' ? reps * 2 : reps);
-
-        const exObj = exercisesDatabase.find(e => e.name.toLowerCase() === (r.exercise || "").toLowerCase());
-        if (exObj) {
-            dayMuscles[exObj.primary] = (dayMuscles[exObj.primary] || 0) + vol;
-        }
-
-        if (!exerciseSummary[r.exercise]) {
-            exerciseSummary[r.exercise] = { sets: 0, maxWeight: 0, unit: r.unit, totalVol: 0 };
-        }
-        exerciseSummary[r.exercise].sets++;
-        exerciseSummary[r.exercise].totalVol += vol;
-        if (parseFloat(r.weight) > exerciseSummary[r.exercise].maxWeight) {
-            exerciseSummary[r.exercise].maxWeight = parseFloat(r.weight);
-            exerciseSummary[r.exercise].unit = r.unit;
-        }
-    });
-
-    // Renderizar tabla resumida
-    let html = '<table style="width:100%;"><thead><tr><th>Ejercicio</th><th>Series</th><th>Máx Peso</th><th>Volumen</th></tr></thead><tbody>';
-    Object.entries(exerciseSummary).forEach(([ex, data]) => {
-        html += `
-            <tr>
-                <td><strong>${ex}</strong></td>
-                <td>${data.sets} series</td>
-                <td>${data.maxWeight} ${data.unit}</td>
-                <td><strong style="color:var(--accent);">${Math.round(data.totalVol)} kg</strong></td>
-            </tr>
-        `;
-    });
-    html += '</tbody></table>';
-    summaryContainer.innerHTML = html;
-
-    // Actualizar mapa muscular con degradado en tonos cálidos
-    updateBodyMapWithWarmGradient(dayMuscles);
-}
-
-    // Función para degradados cálidos (Naranja a Rojo según volumen)
     function updateBodyMapWithWarmGradient(specificData) {
         const allMuscles = ['chest', 'abs', 'quads', 'biceps', 'forearms', 'calves', 'traps', 'abductors', 'adductors', 'shoulders_front', 'back_width', 'back_density', 'shoulders_rear', 'triceps', 'glutes', 'hamstrings'];
     
@@ -2019,18 +1932,20 @@
             [el, elRear].forEach(element => {
                 if (!element) return;
                 if (currentVol === 0) {
-                    element.style.fill = '#2a2a35'; // Tono neutro / descanso
+                    element.style.fill = '#2a2a35';
                 } else {
                     const ratio = Math.min(currentVol / refVol, 1.0);
-                    // Degradado en tonos cálidos (Naranja -> Naranja Intenso -> Rojo Vivo)
-                    if (ratio <= 0.35) element.style.fill = '#ffb74d';      // Naranja claro
-                    else if (ratio <= 0.70) element.style.fill = '#ff7043'; // Naranja intenso
-                    else element.style.fill = '#ff1744';                   // Rojo de máxima intensidad
+                    if (ratio <= 0.35) element.style.fill = '#ffb74d';
+                    else if (ratio <= 0.70) element.style.fill = '#ff7043';
+                    else element.style.fill = '#ff1744';
                 }
             });
         });
     }
-    function closeStoryModal() { document.getElementById('story-modal').style.display = 'none'; }
+
+    function closeStoryModal() { 
+        document.getElementById('story-modal').style.display = 'none'; 
+    }
 </script>
 </body>
 </html>
