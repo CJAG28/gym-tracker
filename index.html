@@ -103,6 +103,19 @@
             font-weight: bold; display: inline-block; margin-top: 4px;
         }
 
+        .time-totals-bar {
+            display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 20px;
+        }
+        .time-total-card {
+            background-color: var(--card-bg); border: 1px solid var(--border-color);
+            border-radius: 10px; padding: 12px 8px; text-align: center;
+        }
+        .time-total-card .ttc-label {
+            font-size: 0.7rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px;
+        }
+        .time-total-card .ttc-value { font-size: 1.25rem; font-weight: bold; color: var(--accent); margin-top: 4px; }
+        @media (max-width: 600px) { .time-totals-bar { grid-template-columns: repeat(2, 1fr); } }
+
         .rest-timer-box {
             background: #16161a; border: 1px dashed var(--accent);
             border-radius: 8px; padding: 10px; margin-bottom: 15px;
@@ -326,6 +339,26 @@
         <div class="timer-status" id="session-timer">00:00:00</div>
         <div style="width: 200px;">
             <button id="btn-toggle-workout" onclick="toggleWorkoutSession()">🚀 Iniciar Entreno</button>
+        </div>
+    </div>
+
+    <!-- TOTALES DE TIEMPO ENTRENADO -->
+    <div class="time-totals-bar">
+        <div class="time-total-card">
+            <div class="ttc-label">⏱️ Hoy</div>
+            <div class="ttc-value" id="time-total-day">0 min</div>
+        </div>
+        <div class="time-total-card">
+            <div class="ttc-label">📆 Semana</div>
+            <div class="ttc-value" id="time-total-week">0 min</div>
+        </div>
+        <div class="time-total-card">
+            <div class="ttc-label">🗓️ Mes</div>
+            <div class="ttc-value" id="time-total-month">0 min</div>
+        </div>
+        <div class="time-total-card">
+            <div class="ttc-label">📅 Año</div>
+            <div class="ttc-value" id="time-total-year">0 min</div>
         </div>
     </div>
 
@@ -1351,6 +1384,7 @@
 
         updateExercisePrBadge(); 
         initChart();
+        updateTimeTotals();
     }
 
     function calculateStreak(datesSet) {
@@ -1396,13 +1430,33 @@
             return d === dateStr && r.recordType === "Serie Individual";
         });
 
+        const durationRow = rawCloudRows.find(r => {
+            let d = (r.date && r.date.includes('T')) ? r.date.split('T')[0] : r.date;
+            return d === dateStr && r.recordType === "Sesión Finalizada";
+        });
+
         const container = document.getElementById('day-modal-content');
+
+        // Bloque para agregar / editar / borrar la duración del entreno de este día,
+        // por si no se registró al inicio o se quiere corregir/eliminar.
+        let html = `
+            <div style="background:#16161a; border:1px solid var(--border-color); border-radius:8px; padding:12px; margin-bottom:15px;">
+                <label style="margin-bottom:8px;">⏱️ Duración del entreno (minutos)</label>
+                <div style="display:flex; gap:8px; align-items:flex-start;">
+                    <input type="number" min="0" id="edit-duration-input" value="${durationRow ? durationRow.durationMinutes : ''}" placeholder="Ej. 60" style="flex:1; margin-top:0;">
+                    <button onclick="saveDayDuration('${dateStr}')" style="width:auto; padding:10px 14px; margin-top:0;">💾</button>
+                    ${durationRow ? `<button onclick="deleteDayDuration(${durationRow._rowIndex})" class="btn-danger" style="width:auto; padding:10px 14px; margin-top:0;">🗑️</button>` : ''}
+                </div>
+            </div>
+        `;
+
         if (dayRows.length === 0) {
-            container.innerHTML = "<p>No hay registros de ejercicios en este día.</p>";
+            html += "<p>No hay registros de ejercicios en este día.</p>";
+            container.innerHTML = html;
             return;
         }
 
-        let html = '<table style="width:100%;"><thead><tr><th>Ejercicio</th><th>Serie</th><th>Peso</th><th>Reps</th><th>Acción</th></tr></thead><tbody>';
+        html += '<table style="width:100%;"><thead><tr><th>Ejercicio</th><th>Serie</th><th>Peso</th><th>Reps</th><th>Acción</th></tr></thead><tbody>';
         dayRows.forEach(r => {
             const isSub = r.isSubset === "si" || r.isSubset === true;
             const setTag = isSub ? "└─ Drop" : `S${r.setNum}`;
@@ -1421,6 +1475,42 @@
         });
         html += '</tbody></table>';
         container.innerHTML = html;
+    }
+
+    function saveDayDuration(dateStr) {
+        const input = document.getElementById('edit-duration-input');
+        if (!input) return;
+        const mins = parseFloat(input.value);
+        if (isNaN(mins) || mins < 0) {
+            alert("Ingresa una duración válida en minutos (0 o más).");
+            return;
+        }
+        const roundedMins = Math.round(mins);
+
+        const existing = rawCloudRows.find(r => {
+            let d = (r.date && r.date.includes('T')) ? r.date.split('T')[0] : r.date;
+            return d === dateStr && r.recordType === "Sesión Finalizada";
+        });
+
+        if (existing && existing._rowIndex !== undefined && existing._rowIndex !== null) {
+            // Ya existe una duración guardada para ese día: la actualizamos.
+            sendPayload({
+                action: "UPDATE_ROW", rowIndex: existing._rowIndex, userEmail: userEmail,
+                date: dateStr, recordType: "Sesión Finalizada", durationMinutes: roundedMins
+            }, "Duración del entreno actualizada");
+        } else {
+            // No existía duración para ese día (se te olvidó registrarla): la creamos.
+            // Se pasa "date" explícito para que quede en el día correcto, no en hoy.
+            sendToSheetsAsync({ action: "CREATE", recordType: "Sesión Finalizada", durationMinutes: roundedMins, date: dateStr });
+            alert("Duración guardada.");
+            closeDayModal();
+            setTimeout(loginAndSync, 1200);
+        }
+    }
+
+    function deleteDayDuration(rowIndex) {
+        if (!confirm("¿Eliminar la duración registrada de este entreno?")) return;
+        sendPayload({ action: "DELETE_ROW", rowIndex: rowIndex }, "Duración del entreno eliminada");
     }
 
     function closeDayModal() { document.getElementById('day-modal').style.display = 'none'; }
@@ -1827,6 +1917,74 @@
         }
     }
 
+    // --- TOTALES DE TIEMPO ENTRENADO (HOY / SEMANA / MES / AÑO) ---
+    function getMondayOfWeek(dateObj) {
+        const d = new Date(dateObj);
+        d.setHours(0, 0, 0, 0);
+        const day = d.getDay(); // 0 = domingo ... 6 = sábado
+        const diffToMonday = (day === 0 ? -6 : 1) - day;
+        d.setDate(d.getDate() + diffToMonday);
+        return d;
+    }
+
+    function formatMinutesReadable(totalMins) {
+        const mins = Math.max(0, Math.round(totalMins));
+        if (mins < 60) return `${mins} min`;
+        const h = Math.floor(mins / 60);
+        const m = mins % 60;
+        return m === 0 ? `${h} h` : `${h}h ${m}min`;
+    }
+
+    function updateTimeTotals() {
+        const dayEl = document.getElementById('time-total-day');
+        const weekEl = document.getElementById('time-total-week');
+        const monthEl = document.getElementById('time-total-month');
+        const yearEl = document.getElementById('time-total-year');
+        if (!dayEl && !weekEl && !monthEl && !yearEl) return;
+
+        const now = new Date();
+        const todayStr = now.toISOString().split('T')[0];
+        const monday = getMondayOfWeek(now);
+        const currentMonth = now.getMonth();
+        const currentYear = now.getFullYear();
+
+        let totalDay = 0, totalWeek = 0, totalMonth = 0, totalYear = 0;
+
+        rawCloudRows.forEach(r => {
+            if (r.recordType !== "Sesión Finalizada") return;
+            const mins = parseFloat(r.durationMinutes);
+            if (isNaN(mins)) return;
+
+            const dStr = (r.date && r.date.includes('T')) ? r.date.split('T')[0] : r.date;
+            if (!dStr) return;
+            const d = new Date(`${dStr}T00:00:00`);
+            if (isNaN(d.getTime())) return;
+
+            if (d.getFullYear() === currentYear) {
+                totalYear += mins;
+                if (d.getMonth() === currentMonth) totalMonth += mins;
+                if (d >= monday) totalWeek += mins;
+            }
+            if (dStr === todayStr) totalDay += mins;
+        });
+
+        // Si hay un entreno EN CURSO ahora mismo, sumamos su tiempo transcurrido
+        // para que "Hoy" se vea actualizado en vivo mientras entrenas, sin
+        // esperar a que termines la sesión y se guarde en la nube.
+        if (isWorkoutActive && workoutStartTime) {
+            const liveMins = (now - workoutStartTime) / 60000;
+            totalDay += liveMins;
+            totalWeek += liveMins;
+            totalMonth += liveMins;
+            totalYear += liveMins;
+        }
+
+        if (dayEl) dayEl.textContent = formatMinutesReadable(totalDay);
+        if (weekEl) weekEl.textContent = formatMinutesReadable(totalWeek);
+        if (monthEl) monthEl.textContent = formatMinutesReadable(totalMonth);
+        if (yearEl) yearEl.textContent = formatMinutesReadable(totalYear);
+    }
+
     function toggleWorkoutSession() {
         const btn = document.getElementById('btn-toggle-workout');
         const status = document.getElementById('session-status');
@@ -1843,6 +2001,7 @@
                 const secs = String(diffSecs % 60).padStart(2, '0');
                 const timerEl = document.getElementById('session-timer');
                 if (timerEl) timerEl.textContent = `${hrs}:${mins}:${secs}`;
+                updateTimeTotals();
             }, 1000);
         } else {
             isWorkoutActive = false; clearInterval(workoutTimerInterval);
@@ -1857,6 +2016,7 @@
             document.getElementById('routine-selector').value = "";
             filterExercisesByRoutine();
             sendToSheetsAsync({ action: "CREATE", recordType: "Sesión Finalizada", durationMinutes: duration });
+            updateTimeTotals();
         }
     }
 
