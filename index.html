@@ -112,9 +112,55 @@
         .body-map-card { text-align: center; }
         .body-map-card span { display: block; font-size: 0.8rem; color: var(--text-muted); margin-bottom: 8px; font-weight: bold; }
         
+        /* Transición fluida de 250ms para el mapa muscular */
         svg path { 
-            fill: #2a2a35; stroke: #121214; stroke-width: 1.5; stroke-linejoin: round; stroke-linecap: round;
-            transition: fill 0.4s ease; 
+            fill: #2a2a35; 
+            stroke: #121214; 
+            stroke-width: 1.5; 
+            stroke-linejoin: round; 
+            stroke-linecap: round;
+            transition: fill 250ms ease-in-out, filter 250ms ease-in-out; 
+        }
+        
+        /* Indicador sutil (punto) en los días con entreno */
+        .calendar-day { 
+            position: relative;
+            padding: 10px 4px; 
+            background: #16161a; 
+            border-radius: 6px; 
+            font-size: 0.8rem; 
+            border: 1px solid var(--border-color); 
+            cursor: pointer; 
+            transition: all 0.2s;
+        }
+        
+        .calendar-day.selected-day {
+            border-color: #ffffff !important;
+            box-shadow: 0 0 8px rgba(255, 255, 255, 0.3);
+        }
+        
+        .calendar-day.trained::after {
+            content: '';
+            position: absolute;
+            bottom: 3px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 5px;
+            height: 5px;
+            background-color: var(--accent);
+            border-radius: 50%;
+        }
+        
+        /* Estilo para el estado vacío / descanso */
+        .empty-workout-state {
+            text-align: center;
+            padding: 20px;
+            color: var(--text-muted);
+            font-style: italic;
+            background: #16161a;
+            border-radius: 8px;
+            border: 1px dashed var(--border-color);
+            margin-top: 10px;
         }
 
         .calendar-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
@@ -282,6 +328,8 @@
 
     <!-- PESTAÑA 1: ENTRENO -->
     <div id="tab-entreno" class="tab-content active">
+        
+        <!-- COLUMNA IZQUIERDA: REGISTRO ACTIVO & FORMULARIO -->
         <div>
             <div class="card">
                 <h2>Registrar Sesión (Serie por Serie)</h2>
@@ -294,7 +342,7 @@
                         <button type="button" id="btn-toggle-rest" onclick="toggleRestTimer()">Iniciar Descanso</button>
                     </div>
                 </div>
-
+    
                 <form id="workout-form">
                     <div class="form-group">
                         <label>Seleccionar Rutina Activa</label>
@@ -302,14 +350,14 @@
                             <option value="">-- Todos los Ejercicios / Libre --</option>
                         </select>
                     </div>
-
+    
                     <div class="form-group">
                         <label>Ejercicio a Registrar</label>
                         <select id="exercise-select" onchange="updateExercisePrBadge()" required></select>
                         <div id="pr-info-badge" class="pr-badge">Récord Max: Selecciona un ejercicio</div>
                         <div id="overload-suggestion" style="font-size:0.75rem; color:var(--accent); margin-top:4px;"></div>
                     </div>
-
+    
                     <div class="form-group">
                         <label>Tipo de Ejecución</label>
                         <select id="is-unilateral">
@@ -317,39 +365,26 @@
                             <option value="si">Unilateral (Por lado)</option>
                         </select>
                     </div>
-
+    
                     <div style="margin-top: 15px;">
                         <label style="font-weight: bold; color: #fff;">Desglose de Series y Dropsets:</label>
                         <div id="sets-container"></div>
                         <button type="button" class="btn-secondary" onclick="addSetRow()">➕ Agregar Otra Serie</button>
                     </div>
-
+    
                     <div class="form-group" style="margin-top: 15px;">
                         <label>📝 Notas Técnicas / Sensaciones de este Ejercicio</label>
                         <textarea id="exercise-session-note" placeholder="Ej. Sensación excelente, subir peso la próxima vez..."></textarea>
                     </div>
-
+    
                     <button type="submit" id="btn-submit-workout" style="margin-top:10px;">Guardar Ejercicio y Series</button>
                 </form>
             </div>
-
-            <div class="card">
-                <h2>📋 Historial Reciente</h2>
-                <table id="history-table">
-                    <thead>
-                        <tr>
-                            <th>Fecha</th>
-                            <th>Ejercicio</th>
-                            <th>Desglose</th>
-                            <th>Volumen</th>
-                        </tr>
-                    </thead>
-                    <tbody></tbody>
-                </table>
-            </div>
         </div>
-
+    
+        <!-- COLUMNA DERECHA: CABECERA CALENDARIO -> MAPA INTERACTIVO -> RESUMEN DEL DÍA -->
         <div>
+            <!-- 1. CABECERA CON CALENDARIO -->
             <div class="card">
                 <div class="calendar-header">
                     <button onclick="changeMonth(-1)">◀ Mes Ant</button>
@@ -358,13 +393,18 @@
                 </div>
                 <div class="calendar-grid" id="calendar-grid"></div>
             </div>
-
-            <div class="card">
-                <h2>🔥 Grupos Musculares (Sesión Actual / Activa)</h2>
+    
+            <!-- 2. GRÁFICO DEL CUERPO INTERACTIVO POR DÍA -->
+            <div class="card" style="text-align: center;">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+                    <h2 style="border:none; margin:0;">🔥 Análisis Muscular del Día</h2>
+                    <span id="selected-day-label" style="font-size:0.85rem; color:var(--accent); font-weight:bold;">Hoy</span>
+                </div>
+                
                 <div class="body-maps-wrapper">
                     <div class="body-map-card">
                         <span>FRONTAL</span>
-                        <svg viewBox="0 0 160 340" width="140" height="280">
+                        <svg viewBox="0 0 160 340" width="130" height="260">
                             <circle cx="80" cy="22" r="14" fill="#3a3a48" />
                             <path d="M 73,36 L 87,36 L 89,45 L 71,45 Z" fill="#3a3a48" />
                             <path id="traps" d="M 71,45 L 89,45 L 94,52 L 66,52 Z" />
@@ -379,10 +419,10 @@
                             <path id="calves" d="M 75,223 L 73,285 C 66,285 60,265 60,223 Z M 85,223 L 87,285 C 94,285 100,265 100,223 Z" />
                         </svg>
                     </div>
-
+    
                     <div class="body-map-card">
                         <span>POSTERIOR</span>
-                        <svg viewBox="0 0 160 340" width="140" height="280">
+                        <svg viewBox="0 0 160 340" width="130" height="260">
                             <circle cx="80" cy="22" r="14" fill="#3a3a48" />
                             <path d="M 73,36 L 87,36 L 89,45 L 71,45 Z" fill="#3a3a48" />
                             <path id="traps_rear" d="M 71,45 L 89,45 C 96,65 92,75 80,78 C 68,75 64,65 71,45 Z" />
@@ -396,6 +436,14 @@
                             <path id="calves_rear" d="M 74,231 L 72,285 C 66,285 60,265 60,231 Z M 86,231 L 88,285 C 94,285 100,265 100,231 Z" />
                         </svg>
                     </div>
+                </div>
+            </div>
+    
+            <!-- 3. RESUMEN DEL ENTRENO DEL DÍA SELECCIONADO -->
+            <div class="card">
+                <h2>📋 Resumen de la Fecha Seleccionada</h2>
+                <div id="day-workout-summary">
+                    <!-- Se llena dinámicamente con JS -->
                 </div>
             </div>
         </div>
